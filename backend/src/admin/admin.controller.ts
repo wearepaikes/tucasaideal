@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Delete, ForbiddenException, Get, Param, ParseIntPipe, Patch, Post, Query, Req, UploadedFiles, UseGuards, UseInterceptors } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, Param, ParseIntPipe, Patch, Post, Query, Req, UploadedFiles, UseGuards, UseInterceptors } from '@nestjs/common';
 import type { Request } from 'express';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { AuthGuard } from '../auth/auth.guard';
@@ -13,7 +13,6 @@ type AdminRequest = Request & { user: { id: number; role: 'ADMIN' | 'DIRECTOR' }
 @Controller('admin')
 export class AdminController {
   constructor(private readonly admin: AdminService, private readonly gateway: AuthGateway, private readonly storage: R2StorageService) {}
-  private requireAdmin(request: AdminRequest) { if (request.user.role !== 'ADMIN') throw new ForbiddenException('Solo un administrador puede gestionar usuarios.'); }
 
   @Get('dashboard') dashboard(@Query('from') from?: string, @Query('to') to?: string) { return this.admin.dashboard(from, to); }
   @Get('leads') leads(@Query('q') query?: string, @Query('status') status?: string, @Query('model') model?: string) { return this.admin.leads(query, status, model); }
@@ -21,8 +20,8 @@ export class AdminController {
   @Get('business-profile') businessProfile() { return this.admin.businessProfile(); }
   @Patch('business-profile') async updateBusinessProfile(@Body() dto: BusinessProfileDto) { const profile = await this.admin.updateBusinessProfile(dto); this.gateway.notifyBusinessProfile(profile); return profile; }
   @Patch('house-count-profile') async updateHouseCountProfile(@Body() dto: HouseCountProfileDto) { const profile = await this.admin.updateHouseCountProfile(dto); this.gateway.notifyBusinessProfile(profile); return profile; }
-  @Get('users') users(@Req() request: AdminRequest) { this.requireAdmin(request); return this.admin.users(); }
-  @Patch('users/:id/active') async toggleUser(@Param('id', ParseIntPipe) id: number, @Body() dto: ToggleActiveDto, @Req() request: AdminRequest) { this.requireAdmin(request); const result = await this.admin.toggleUser(id, dto.active, request.user.id); if (result.active) this.gateway.notifyApproved(result.id); return result; }
+  @Get('users') users() { return this.admin.users(); }
+  @Patch('users/:id/active') async toggleUser(@Param('id', ParseIntPipe) id: number, @Body() dto: ToggleActiveDto, @Req() request: AdminRequest) { const result = await this.admin.toggleUser(id, dto.active, request.user.id); if (result.active) this.gateway.notifyApproved(result.id); return result; }
   @Get('projects') projects() { return this.admin.projects(); }
   private existingPhotos(value?: string) { try { const parsed = JSON.parse(value || '[]'); if (!Array.isArray(parsed) || !parsed.every((item) => typeof item === 'string')) throw new Error(); return parsed as string[]; } catch { throw new BadRequestException('La lista de imágenes existentes no es válida.'); } }
   private withSelectedCover(existing: string[], uploaded: string[], selection?: string) {
