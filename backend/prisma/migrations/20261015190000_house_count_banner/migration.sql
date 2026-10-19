@@ -1,0 +1,3 @@
+ALTER TABLE `BusinessProfile`
+    ADD COLUMN `houseCountMode` VARCHAR(20) NOT NULL DEFAULT 'AUTOMATIC',
+    ADD COLUMN `manualHouseCount` INTEGER NULL;

@@ -1,0 +1,111 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+model Lead {
+  id        Int      @id @default(autoincrement())
+  name      String   @db.VarChar(100)
+  phone     String   @db.VarChar(30)
+  model     String   @db.VarChar(80)
+  land      String   @db.VarChar(40)
+  location  String   @db.VarChar(120)
+  status    LeadStatus @default(NEW)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([createdAt])
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  CLOSED
+}
+
+model HouseModel {
+  id          Int      @id @default(autoincrement())
+  slug        String   @unique @db.VarChar(50)
+  name        String   @db.VarChar(100)
+  area        Int
+  description String   @db.VarChar(255)
+  image       String   @db.VarChar(255)
+  videoId     String?  @db.VarChar(30)
+  priceUsd    Decimal? @db.Decimal(12, 2)
+  featured    Boolean  @default(false)
+  active      Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt @default(now())
+}
+
+model Work {
+  id        Int      @id @default(autoincrement())
+  name      String?  @db.VarChar(120)
+  model     String   @db.VarChar(20)
+  area      Int?
+  bedrooms  Int?
+  bathrooms Int?
+  status    String   @default("ENTREGADA") @db.VarChar(30)
+  location  String   @db.VarChar(120)
+  photo     String   @db.VarChar(255)
+  photos    Json
+  youtubeId String?  @db.VarChar(255)
+  deliveredAt DateTime?
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt @default(now())
+}
+
+model Project {
+  id        Int      @id @default(autoincrement())
+  slug      String   @unique @db.VarChar(60)
+  name      String   @db.VarChar(120)
+  status    String   @db.VarChar(60)
+  cover     String   @db.VarChar(255)
+  photos    Json
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt @default(now())
+}
+
+model User {
+  id           Int      @id @default(autoincrement())
+  firstName    String   @db.VarChar(80)
+  lastName     String   @db.VarChar(80)
+  email        String   @unique @db.VarChar(191)
+  passwordHash String?  @db.VarChar(255)
+  googleId     String?  @unique @db.VarChar(191)
+  role         UserRole @default(DIRECTOR)
+  active       Boolean  @default(false)
+  lastLoginAt  DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+enum UserRole {
+  ADMIN
+  DIRECTOR
+}
+
+model PortalAccess {
+  id         Int       @id @default(autoincrement())
+  tokenHash  String    @unique @db.Char(64)
+  createdAt  DateTime  @default(now())
+  lastUsedAt DateTime?
+  revokedAt  DateTime?
+}
+
+model BusinessProfile {
+  id                 Int      @id @default(1)
+  serviceYearsMode   String   @default("AUTOMATIC") @db.VarChar(20)
+  serviceStartDate   DateTime?
+  manualServiceYears Int?
+  houseCountMode     String   @default("AUTOMATIC") @db.VarChar(20)
+  manualHouseCount   Int?
+  updatedAt          DateTime @updatedAt @default(now())
+}

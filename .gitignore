@@ -1,3 +1,15 @@
 # Solo para ver el sitio en la computadora
 ver-sitio.command
 .DS_Store
+node_modules/
+frontend/dist/
+backend/dist/
+backend/src/generated/prisma/
+.env
+backend/.env
+frontend/.env
+*.log
+.npm-cache/
+.vercel/
+.railway/
+TCI.pdf

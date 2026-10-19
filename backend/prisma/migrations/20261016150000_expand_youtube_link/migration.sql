@@ -1,0 +1,1 @@
+ALTER TABLE `Work` MODIFY `youtubeId` VARCHAR(255) NULL;
