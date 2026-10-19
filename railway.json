@@ -5,8 +5,8 @@
     "buildCommand": "npm run build -w backend"
   },
   "deploy": {
-    "preDeployCommand": "npm run prisma:deploy",
-    "startCommand": "npm run start:prod -w backend",
+    "preDeployCommand": "npm run prisma:deploy -w backend",
+    "startCommand": "node backend/dist/src/main.js",
     "healthcheckPath": "/api/health",
     "healthcheckTimeout": 120,
     "restartPolicyType": "ON_FAILURE",
