@@ -14,6 +14,13 @@ export class AuthService {
   constructor(private readonly prisma: PrismaService, private readonly jwt: JwtService, private readonly config: ConfigService) {}
 
   private tokenHash(token: string) { return createHash('sha256').update(token).digest('hex'); }
+  private googleCallbackUrl() {
+    if (this.config.get('NODE_ENV') === 'production') {
+      const frontendUrl = this.config.getOrThrow<string>('FRONTEND_URL').replace(/\/$/, '');
+      return `${frontendUrl}/api/auth/google/callback`;
+    }
+    return this.config.getOrThrow<string>('GOOGLE_CALLBACK_URL');
+  }
 
   async createAccessLink() {
     const token = randomBytes(32).toString('base64url');
@@ -99,7 +106,7 @@ export class AuthService {
   async googleUrl(accessToken: string) {
     await this.verifyAccess(accessToken);
     const clientId = this.config.get<string>('GOOGLE_CLIENT_ID');
-    const callback = this.config.get<string>('GOOGLE_CALLBACK_URL');
+    const callback = this.googleCallbackUrl();
     if (!clientId || !callback) throw new BadRequestException('Google OAuth todavía no está configurado.');
     const state = this.jwt.sign({ purpose: 'google-state', accessToken }, { expiresIn: '10m' });
     const params = new URLSearchParams({ client_id: clientId, redirect_uri: callback, response_type: 'code', scope: 'openid email profile', state, prompt: 'select_account' });
@@ -110,7 +117,7 @@ export class AuthService {
     const statePayload = this.jwt.verify<{ purpose: string; accessToken: string }>(state);
     if (statePayload.purpose !== 'google-state') throw new UnauthorizedException();
     await this.verifyAccess(statePayload.accessToken);
-    const callback = this.config.getOrThrow<string>('GOOGLE_CALLBACK_URL');
+    const callback = this.googleCallbackUrl();
     const response = await fetch('https://oauth2.googleapis.com/token', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ code, client_id: this.config.getOrThrow('GOOGLE_CLIENT_ID'), client_secret: this.config.getOrThrow('GOOGLE_CLIENT_SECRET'), redirect_uri: callback, grant_type: 'authorization_code' }) });
     if (!response.ok) throw new UnauthorizedException('Google no pudo validar el acceso.');
     const tokens = await response.json() as { access_token: string };
