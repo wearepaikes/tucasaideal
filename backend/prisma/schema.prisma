@@ -166,3 +166,17 @@ model BusinessProfile {
   manualHouseCount   Int?
   updatedAt          DateTime @updatedAt @default(now())
 }
+
+model GoogleReview {
+  id         Int      @id @default(autoincrement())
+  author     String   @db.VarChar(120)
+  rating     Int      @default(5)
+  text       String   @db.Text
+  reviewDate DateTime?
+  active     Boolean  @default(true)
+  sortOrder  Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt @default(now())
+
+  @@index([active, sortOrder])
+}

@@ -8,5 +8,6 @@ export class CatalogController {
   @Get('models') models() { return this.catalog.models(); }
   @Get('works') works() { return this.catalog.works(); }
   @Get('projects') projects() { return this.catalog.projects(); }
+  @Get('reviews') reviews() { return this.catalog.googleReviews(); }
   @Get('business-profile') businessProfile() { return this.catalog.businessProfile(); }
 }

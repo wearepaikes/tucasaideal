@@ -46,3 +46,11 @@ export class HouseCountProfileDto {
   @IsIn(['AUTOMATIC', 'MANUAL']) mode!: 'AUTOMATIC' | 'MANUAL';
   @ValidateIf((dto) => dto.mode === 'MANUAL') @IsInt() @Min(0) @Max(1000000) manualCount?: number;
 }
+
+export class CreateGoogleReviewDto {
+  @IsString() @IsNotEmpty() @MaxLength(120) author!: string;
+  @Type(() => Number) @IsInt() @Min(1) @Max(5) rating!: number;
+  @IsString() @IsNotEmpty() @MaxLength(3000) text!: string;
+  @IsOptional() @IsDateString() reviewDate?: string;
+  @IsOptional() @IsBoolean() active?: boolean;
+}

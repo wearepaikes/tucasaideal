@@ -68,6 +68,10 @@ export class AuthGateway implements OnGatewayConnection {
     this.server.emit('works:updated', change);
   }
 
+  notifyReviewsChanged(change: { action: 'created' | 'deleted' | 'visibility'; reviewId: number }) {
+    this.server.emit('reviews:updated', change);
+  }
+
   notifyChatCreated(chat: unknown) { this.server.to('active-portal').emit('chat:created', chat); }
   notifyChatMessage(publicId: string, message: unknown, conversationId: number) {
     this.server.to(`chat:${publicId}`).emit('chat:message', message);

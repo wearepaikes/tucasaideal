@@ -7,6 +7,7 @@ export class CatalogService {
   models() { return this.prisma.houseModel.findMany({ where: { active: true }, orderBy: { sortOrder: 'asc' } }); }
   works() { return this.prisma.work.findMany({ where: { active: true }, orderBy: { deliveredAt: 'desc' } }); }
   projects() { return this.prisma.project.findMany({ where: { active: true }, orderBy: { id: 'asc' } }); }
+  googleReviews() { return (this.prisma as any).googleReview.findMany({ where: { active: true }, orderBy: [{ sortOrder: 'asc' }, { createdAt: 'desc' }] }); }
   async businessProfile() {
     const profile = await this.prisma.businessProfile.findUnique({ where: { id: 1 } });
     const publishedHouses = await this.prisma.work.count({ where: { active: true } });
