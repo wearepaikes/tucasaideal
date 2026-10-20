@@ -36,6 +36,14 @@ export class AuthGateway implements OnGatewayConnection {
     }
   }
 
+  @SubscribeMessage('chat:watch')
+  async watchChat(@ConnectedSocket() client: Socket, @MessageBody() publicId: string) {
+    const chat = await this.prisma.chatConversation.findUnique({ where: { publicId }, select: { id: true } });
+    if (!chat) return { watching: false };
+    await client.join(`chat:${publicId}`);
+    return { watching: true };
+  }
+
   notifyAdmins(user: { id: number; firstName: string; lastName: string; email: string; createdAt: Date }) {
     this.server.to('active-admins').emit('registration:pending', user);
   }
@@ -59,4 +67,11 @@ export class AuthGateway implements OnGatewayConnection {
   notifyWorksChanged(change: { action: 'created' | 'updated' | 'deleted' | 'visibility'; workId: number }) {
     this.server.emit('works:updated', change);
   }
+
+  notifyChatCreated(chat: unknown) { this.server.to('active-portal').emit('chat:created', chat); }
+  notifyChatMessage(publicId: string, message: unknown, conversationId: number) {
+    this.server.to(`chat:${publicId}`).emit('chat:message', message);
+    this.server.to('active-portal').emit('chat:message', { conversationId, message });
+  }
+  notifyChatUpdated(chat: unknown) { this.server.to('active-portal').emit('chat:updated', chat); }
 }
