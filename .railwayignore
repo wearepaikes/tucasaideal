@@ -1,0 +1,9 @@
+node_modules/
+frontend/dist/
+backend/dist/
+.frontend-independent/
+drive-download-*/
+drive-download-*.zip
+.git/
+.env
+backend/.env

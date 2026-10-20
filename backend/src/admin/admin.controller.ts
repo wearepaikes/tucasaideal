@@ -1,6 +1,6 @@
 import { BadRequestException, Body, Controller, Delete, Get, Param, ParseIntPipe, Patch, Post, Query, Req, UploadedFiles, UseGuards, UseInterceptors } from '@nestjs/common';
 import type { Request } from 'express';
-import { FilesInterceptor } from '@nestjs/platform-express';
+import { AnyFilesInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { AuthGuard } from '../auth/auth.guard';
 import { AuthGateway } from '../auth/auth.gateway';
 import { AdminService } from './admin.service';
@@ -13,6 +13,8 @@ type AdminRequest = Request & { user: { id: number; role: 'ADMIN' | 'DIRECTOR' }
 @Controller('admin')
 export class AdminController {
   constructor(private readonly admin: AdminService, private readonly gateway: AuthGateway, private readonly storage: R2StorageService) {}
+
+  private splitFiles(files: UploadedImage[]) { return { images: files.filter((file) => file.fieldname === 'images'), panoramas: files.filter((file) => file.fieldname === 'panoramas') }; }
 
   @Get('dashboard') dashboard(@Query('from') from?: string, @Query('to') to?: string) { return this.admin.dashboard(from, to); }
   @Get('leads') leads(@Query('q') query?: string, @Query('status') status?: string, @Query('model') model?: string) { return this.admin.leads(query, status, model); }
@@ -63,8 +65,21 @@ export class AdminController {
     await this.storage.deleteProjectImages(oldPhotos.filter((photo) => !existing.includes(photo)));
     return updated;
   }
-  @Delete('projects/:id') async deleteProject(@Param('id', ParseIntPipe) id: number) { const project = await this.admin.deleteProject(id); this.gateway.notifyProjectsChanged({ action: 'deleted', projectId: id }); await this.storage.deleteProjectImages(project.photos as string[]); return { deleted: true }; }
+  @Delete('projects/:id') async deleteProject(@Param('id', ParseIntPipe) id: number) { const project = await this.admin.deleteProject(id); this.gateway.notifyProjectsChanged({ action: 'deleted', projectId: id }); await Promise.all([this.storage.deleteProjectImages(project.photos as string[]), this.storage.deleteProjectPanoramas(Array.isArray(project.panoramas) ? project.panoramas as string[] : [])]); return { deleted: true }; }
   @Patch('projects/:id/active') async toggleProject(@Param('id', ParseIntPipe) id: number, @Body() dto: ToggleActiveDto) { const project = await this.admin.toggleProject(id, dto.active); this.gateway.notifyProjectsChanged({ action: 'visibility', projectId: id }); return project; }
+  @Patch('projects/:id/panoramas') @UseInterceptors(AnyFilesInterceptor({ limits: { files: 8, fileSize: 30 * 1024 * 1024 } }))
+  async updateProjectPanoramas(@Param('id', ParseIntPipe) id: number, @Body('existingPanoramas') value?: string, @UploadedFiles() files: UploadedImage[] = []) {
+    const current = await this.admin.projects().then((items) => items.find((item) => item.id === id));
+    if (!current) throw new BadRequestException('El proyecto no existe.');
+    const old = Array.isArray(current.panoramas) ? current.panoramas as string[] : [];
+    const existing = this.existingPhotos(value);
+    if (existing.some((url) => !old.includes(url)) || existing.length + files.length > 8) throw new BadRequestException('La selección de panoramas no es válida.');
+    const uploaded = await this.storage.uploadProjectPanoramas(files);
+    const project = await this.admin.replaceProjectPanoramas(id, [...existing, ...uploaded]).catch(async (error) => { await this.storage.deleteProjectPanoramas(uploaded); throw error; });
+    await this.storage.deleteProjectPanoramas(old.filter((url) => !existing.includes(url)));
+    this.gateway.notifyProjectsChanged({ action: 'updated', projectId: id });
+    return project;
+  }
   @Get('works') works() { return this.admin.works(); }
   @Post('works') @UseInterceptors(FilesInterceptor('images', 10, { limits: { fileSize: 12 * 1024 * 1024 }, fileFilter: (_req, file, callback) => callback(file.mimetype.match(/^image\/(jpeg|png|webp|avif)$/) ? null : new BadRequestException('Solo se permiten imÃ¡genes JPG, PNG, WebP o AVIF.'), Boolean(file.mimetype.match(/^image\/(jpeg|png|webp|avif)$/))) }))
   async createWork(@Body() dto: CreateWorkDto, @UploadedFiles() files: UploadedImage[] = []) {
@@ -103,7 +118,21 @@ export class AdminController {
     this.gateway.notifyWorksChanged({ action: 'deleted', workId: id });
     this.gateway.notifyBusinessProfile(await this.admin.businessProfile());
     await this.storage.deleteHouseImages(photos);
+    await this.storage.deleteHousePanoramas(Array.isArray(work.panoramas) ? work.panoramas as string[] : []);
     return { deleted: true };
   }
   @Patch('works/:id/active') async toggleWork(@Param('id', ParseIntPipe) id: number, @Body() dto: ToggleActiveDto) { const work = await this.admin.toggleWork(id, dto.active); this.gateway.notifyWorksChanged({ action: 'visibility', workId: id }); this.gateway.notifyBusinessProfile(await this.admin.businessProfile()); return work; }
+  @Patch('works/:id/panoramas') @UseInterceptors(AnyFilesInterceptor({ limits: { files: 8, fileSize: 30 * 1024 * 1024 } }))
+  async updateWorkPanoramas(@Param('id', ParseIntPipe) id: number, @Body('existingPanoramas') value?: string, @UploadedFiles() files: UploadedImage[] = []) {
+    const current = await this.admin.works().then((items) => items.find((item) => item.id === id));
+    if (!current) throw new BadRequestException('La casa no existe.');
+    const old = Array.isArray(current.panoramas) ? current.panoramas as string[] : [];
+    const existing = this.existingPhotos(value);
+    if (existing.some((url) => !old.includes(url)) || existing.length + files.length > 8) throw new BadRequestException('La selección de panoramas no es válida.');
+    const uploaded = await this.storage.uploadHousePanoramas(files);
+    const work = await this.admin.replaceWorkPanoramas(id, [...existing, ...uploaded]).catch(async (error) => { await this.storage.deleteHousePanoramas(uploaded); throw error; });
+    await this.storage.deleteHousePanoramas(old.filter((url) => !existing.includes(url)));
+    this.gateway.notifyWorksChanged({ action: 'updated', workId: id });
+    return work;
+  }
 }

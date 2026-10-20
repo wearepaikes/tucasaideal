@@ -4,7 +4,7 @@ import { DeleteObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client
 import { randomUUID } from 'node:crypto';
 import sharp from 'sharp';
 
-export type UploadedImage = { buffer: Buffer; originalname: string; mimetype: string; size: number };
+export type UploadedImage = { buffer: Buffer; originalname: string; mimetype: string; size: number; fieldname?: string };
 
 @Injectable()
 export class R2StorageService {
@@ -55,7 +55,39 @@ export class R2StorageService {
   uploadProjectImages(files: UploadedImage[]) { return this.uploadImages(files, 'projects'); }
   uploadHouseImages(files: UploadedImage[]) { return this.uploadImages(files, 'houses'); }
 
-  private async deleteImages(urls: string[], folder: 'projects' | 'houses') {
+  private async uploadPanoramas(files: UploadedImage[], folder: 'projects-360' | 'houses-360') {
+    const client = this.configured();
+    const uploaded: string[] = [];
+    try {
+      for (const file of files) {
+        let body: Buffer;
+        try {
+          const image = sharp(file.buffer, { failOn: 'error' }).rotate();
+          const metadata = await image.metadata();
+          if (!metadata.width || !metadata.height || Math.abs(metadata.width / metadata.height - 2) > 0.12) {
+            throw new BadRequestException(`${file.originalname} no tiene formato panorámico 2:1.`);
+          }
+          body = await image.resize({ width: 6144, height: 3072, fit: 'inside', withoutEnlargement: true }).webp({ quality: 84, effort: 4 }).toBuffer();
+        } catch (error) {
+          if (error instanceof BadRequestException) throw error;
+          throw new BadRequestException(`No pudimos procesar el panorama ${file.originalname}.`);
+        }
+        const key = `${folder}/${new Date().getUTCFullYear()}/${randomUUID()}.webp`;
+        await client.send(new PutObjectCommand({ Bucket: this.bucket, Key: key, Body: body, ContentType: 'image/webp', CacheControl: 'public, max-age=31536000, immutable' }));
+        uploaded.push(`${this.publicUrl}/${key}`);
+      }
+      return uploaded;
+    } catch (error) {
+      await this.deleteImages(uploaded, folder).catch(() => undefined);
+      if (error instanceof BadRequestException) throw error;
+      throw new ServiceUnavailableException('No pudimos guardar los recorridos 360 en Cloudflare R2. Intentá nuevamente.');
+    }
+  }
+
+  uploadProjectPanoramas(files: UploadedImage[]) { return this.uploadPanoramas(files, 'projects-360'); }
+  uploadHousePanoramas(files: UploadedImage[]) { return this.uploadPanoramas(files, 'houses-360'); }
+
+  private async deleteImages(urls: string[], folder: 'projects' | 'houses' | 'projects-360' | 'houses-360') {
     if (!this.client || !this.publicUrl) return;
     await Promise.all(urls.filter((url) => url.startsWith(`${this.publicUrl}/${folder}/`)).map((url) => {
       const key = decodeURIComponent(url.slice(this.publicUrl.length + 1));
@@ -66,4 +98,6 @@ export class R2StorageService {
 
   deleteProjectImages(urls: string[]) { return this.deleteImages(urls, 'projects'); }
   deleteHouseImages(urls: string[]) { return this.deleteImages(urls, 'houses'); }
+  deleteProjectPanoramas(urls: string[]) { return this.deleteImages(urls, 'projects-360'); }
+  deleteHousePanoramas(urls: string[]) { return this.deleteImages(urls, 'houses-360'); }
 }

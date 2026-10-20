@@ -1,0 +1,2 @@
+ALTER TABLE `Work` ADD COLUMN `panoramas` JSON NULL;
+ALTER TABLE `Project` ADD COLUMN `panoramas` JSON NULL;

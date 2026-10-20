@@ -110,26 +110,28 @@ export class AdminService {
   }
 
   projects() { return this.prisma.project.findMany({ orderBy: { createdAt: 'desc' } }); }
-  async createProject(dto: CreateProjectDto, photos: string[]) {
+  async createProject(dto: CreateProjectDto, photos: string[], panoramas: string[] = []) {
     const base = dto.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'proyecto';
     let slug = base;
     let suffix = 1;
     while (await this.prisma.project.findUnique({ where: { slug } })) slug = `${base}-${++suffix}`;
-    return this.prisma.project.create({ data: { slug, name: dto.name, status: dto.status, cover: photos[0], photos } });
+    return this.prisma.project.create({ data: { slug, name: dto.name, status: dto.status, cover: photos[0], photos, panoramas } });
   }
-  async updateProject(id: number, dto: CreateProjectDto, photos: string[]) { return this.prisma.project.update({ where: { id }, data: { name: dto.name, status: dto.status, cover: photos[0], photos } }); }
+  async updateProject(id: number, dto: CreateProjectDto, photos: string[], panoramas: string[] = []) { return this.prisma.project.update({ where: { id }, data: { name: dto.name, status: dto.status, cover: photos[0], photos, panoramas } }); }
   async deleteProject(id: number) { const project = await this.prisma.project.delete({ where: { id } }); return project; }
   toggleProject(id: number, active: boolean) { return this.prisma.project.update({ where: { id }, data: { active } }); }
+  replaceProjectPanoramas(id: number, panoramas: string[]) { return this.prisma.project.update({ where: { id }, data: { panoramas } }); }
 
   works() { return this.prisma.work.findMany({ orderBy: { createdAt: 'desc' } }); }
-  createWork(dto: CreateWorkDto, photos: string[]) {
+  createWork(dto: CreateWorkDto, photos: string[], panoramas: string[] = []) {
     const { coverSelection: _coverSelection, ...data } = dto;
-    return this.prisma.work.create({ data: { ...data, youtubeId: this.youtubeId(dto.youtubeId), photo: photos[0], photos, model: String(dto.area), deliveredAt: dto.status === 'ENTREGADA' ? new Date() : null } });
+    return this.prisma.work.create({ data: { ...data, youtubeId: this.youtubeId(dto.youtubeId), photo: photos[0], photos, panoramas, model: String(dto.area), deliveredAt: dto.status === 'ENTREGADA' ? new Date() : null } });
   }
-  updateWork(id: number, dto: UpdateWorkDto, photos: string[]) {
-    const { coverSelection: _coverSelection, existingPhotos: _existingPhotos, ...data } = dto;
-    return this.prisma.work.update({ where: { id }, data: { ...data, youtubeId: this.youtubeId(dto.youtubeId), photo: photos[0], photos, model: String(dto.area), deliveredAt: dto.status === 'ENTREGADA' ? new Date() : null } });
+  updateWork(id: number, dto: UpdateWorkDto, photos: string[], panoramas: string[] = []) {
+    const { coverSelection: _coverSelection, existingPhotos: _existingPhotos, existingPanoramas: _existingPanoramas, ...data } = dto;
+    return this.prisma.work.update({ where: { id }, data: { ...data, youtubeId: this.youtubeId(dto.youtubeId), photo: photos[0], photos, panoramas, model: String(dto.area), deliveredAt: dto.status === 'ENTREGADA' ? new Date() : null } });
   }
   deleteWork(id: number) { return this.prisma.work.delete({ where: { id } }); }
   toggleWork(id: number, active: boolean) { return this.prisma.work.update({ where: { id }, data: { active } }); }
+  replaceWorkPanoramas(id: number, panoramas: string[]) { return this.prisma.work.update({ where: { id }, data: { panoramas } }); }
 }

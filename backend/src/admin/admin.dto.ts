@@ -9,6 +9,7 @@ export class CreateProjectDto {
 
 export class UpdateProjectDto extends CreateProjectDto {
   @IsOptional() @IsString() existingPhotos?: string;
+  @IsOptional() @IsString() existingPanoramas?: string;
 }
 
 export class CreateWorkDto {
@@ -24,6 +25,7 @@ export class CreateWorkDto {
 
 export class UpdateWorkDto extends CreateWorkDto {
   @IsOptional() @IsString() existingPhotos?: string;
+  @IsOptional() @IsString() existingPanoramas?: string;
 }
 
 export class ToggleActiveDto {
