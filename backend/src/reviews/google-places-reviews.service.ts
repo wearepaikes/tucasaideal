@@ -76,7 +76,7 @@ export class GooglePlacesReviewsService implements OnModuleInit, OnModuleDestroy
     }
 
     try {
-      const response = await fetch(`https://places.googleapis.com/v1/places/${encodeURIComponent(placeId)}?languageCode=es`, {
+      const response = await fetch(`https://places.googleapis.com/v1/places/${encodeURIComponent(placeId)}`, {
         headers: {
           'X-Goog-Api-Key': apiKey,
           'X-Goog-FieldMask': 'displayName,rating,userRatingCount,googleMapsUri,reviews',
@@ -92,17 +92,21 @@ export class GooglePlacesReviewsService implements OnModuleInit, OnModuleDestroy
         throw new Error(googleMessage);
       }
 
-      const reviews = (place.reviews || []).map((review, index) => ({
-        externalId: review.name || `${review.authorAttribution?.displayName || 'Google'}:${review.publishTime || index}`,
-        author: (review.authorAttribution?.displayName || 'Cliente de Google').slice(0, 120),
-        rating: Math.max(1, Math.min(5, Math.round(review.rating || 5))),
-        text: (review.text?.text || review.originalText?.text || '').trim(),
-        reviewDate: review.publishTime ? new Date(review.publishTime) : null,
-        authorUri: review.authorAttribution?.uri || null,
-        authorPhotoUrl: review.authorAttribution?.photoUri || null,
-        googleMapsUri: review.googleMapsUri || place.googleMapsUri || null,
-        sortOrder: index,
-      })).filter((review) => review.text);
+      const sourceReviews = place.reviews || [];
+      const reviews = sourceReviews.map((review, index) => {
+        const rating = Math.max(1, Math.min(5, Math.round(review.rating || 5)));
+        return {
+          externalId: review.name || `${review.authorAttribution?.displayName || 'Google'}:${review.publishTime || index}`,
+          author: (review.authorAttribution?.displayName || 'Cliente de Google').slice(0, 120),
+          rating,
+          text: (review.text?.text || review.originalText?.text || `Calificación de ${rating} estrellas en Google.`).trim(),
+          reviewDate: review.publishTime ? new Date(review.publishTime) : null,
+          authorUri: review.authorAttribution?.uri || null,
+          authorPhotoUrl: review.authorAttribution?.photoUri || null,
+          googleMapsUri: review.googleMapsUri || place.googleMapsUri || null,
+          sortOrder: index,
+        };
+      });
 
       const externalIds = reviews.map((review) => review.externalId);
       await this.prisma.$transaction(async (transaction) => {
@@ -121,7 +125,8 @@ export class GooglePlacesReviewsService implements OnModuleInit, OnModuleDestroy
 
       this.lastSyncAt = Date.now();
       this.gateway.notifyReviewsChanged({ action: 'synced', reviewId: 0 });
-      return { imported: reviews.length, rating: place.rating, total: place.userRatingCount, place: place.displayName?.text };
+      this.logger.log(`Google Places devolvió ${sourceReviews.length} reseñas; se importaron ${reviews.length}.`);
+      return { imported: reviews.length, received: sourceReviews.length, rating: place.rating, total: place.userRatingCount, place: place.displayName?.text };
     } catch (error) {
       const message = error instanceof Error ? error.message : 'No se pudo consultar Google Places.';
       this.logger.warn(`Sincronización de reseñas: ${message}`);
