@@ -1,4 +1,4 @@
-import { BadGatewayException, Injectable, Logger, OnModuleDestroy, OnModuleInit, ServiceUnavailableException } from '@nestjs/common';
+import { BadGatewayException, ForbiddenException, HttpException, Injectable, Logger, OnModuleDestroy, OnModuleInit, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AuthGateway } from '../auth/auth.gateway';
 import { PrismaService } from '../prisma/prisma.service';
@@ -84,7 +84,13 @@ export class GooglePlacesReviewsService implements OnModuleInit, OnModuleDestroy
         signal: AbortSignal.timeout(12000),
       });
       const place = await response.json() as GooglePlace;
-      if (!response.ok) throw new Error(place.error?.message || `Google Places respondió ${response.status}.`);
+      if (!response.ok) {
+        const googleMessage = place.error?.message || `Google Places respondió ${response.status}.`;
+        if (response.status === 403) {
+          throw new ForbiddenException(`Google Places rechazó la clave. Verificá que Places API (New), la facturación y las restricciones de la API key estén configuradas en el mismo proyecto. Detalle: ${googleMessage}`);
+        }
+        throw new Error(googleMessage);
+      }
 
       const reviews = (place.reviews || []).map((review, index) => ({
         externalId: review.name || `${review.authorAttribution?.displayName || 'Google'}:${review.publishTime || index}`,
@@ -119,6 +125,8 @@ export class GooglePlacesReviewsService implements OnModuleInit, OnModuleDestroy
     } catch (error) {
       const message = error instanceof Error ? error.message : 'No se pudo consultar Google Places.';
       this.logger.warn(`Sincronización de reseñas: ${message}`);
+      this.lastSyncAt = Date.now();
+      if (throwErrors && error instanceof HttpException) throw error;
       if (throwErrors) throw new BadGatewayException(message);
       return { imported: 0 };
     }

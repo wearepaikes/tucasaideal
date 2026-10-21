@@ -42,9 +42,7 @@ export class ChatService {
     if (!existing) throw new NotFoundException('La conversación no existe.');
     if (!existing.assignedToId) await this.prisma.chatConversation.updateMany({ where: { id, assignedToId: null }, data: { assignedToId: user.id, status: 'ACTIVE' } });
     const chat = await this.prisma.chatConversation.findUniqueOrThrow({ where: { id }, include: { assignedTo: { select: { id: true, firstName: true, lastName: true } } } });
-    const firstAdvisorMessage = await this.prisma.chatMessage.count({ where: { conversationId: id, sender: 'ADVISOR' } }) === 0;
-    const body = firstAdvisorMessage ? `Hola ${existing.name}, mi nombre es ${user.firstName}, soy tu asesor de Tu Casa Ideal. ${text.trim()}` : text.trim();
-    const message = await this.prisma.chatMessage.create({ data: { conversationId: id, sender: 'ADVISOR', advisorId: user.id, text: body }, include: { advisor: { select: { id: true, firstName: true, lastName: true } } } });
+    const message = await this.prisma.chatMessage.create({ data: { conversationId: id, sender: 'ADVISOR', advisorId: user.id, text: text.trim() }, include: { advisor: { select: { id: true, firstName: true, lastName: true } } } });
     await this.prisma.chatConversation.update({ where: { id }, data: { lastMessageAt: new Date(), status: 'ACTIVE' } });
     return { chat, message };
   }
