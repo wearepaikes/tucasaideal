@@ -1,13 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { GooglePlacesReviewsService } from '../reviews/google-places-reviews.service';
 
 @Injectable()
 export class CatalogService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService, private readonly reviews: GooglePlacesReviewsService) {}
   models() { return this.prisma.houseModel.findMany({ where: { active: true }, orderBy: { sortOrder: 'asc' } }); }
   works() { return this.prisma.work.findMany({ where: { active: true }, orderBy: { deliveredAt: 'desc' } }); }
   projects() { return this.prisma.project.findMany({ where: { active: true }, orderBy: { id: 'asc' } }); }
-  googleReviews() { return (this.prisma as any).googleReview.findMany({ where: { active: true }, orderBy: [{ sortOrder: 'asc' }, { createdAt: 'desc' }] }); }
+  googleReviews() { return this.reviews.publicReviews(); }
   async businessProfile() {
     const profile = await this.prisma.businessProfile.findUnique({ where: { id: 1 } });
     const publishedHouses = await this.prisma.work.count({ where: { active: true } });

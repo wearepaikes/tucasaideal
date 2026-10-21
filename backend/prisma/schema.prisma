@@ -168,15 +168,21 @@ model BusinessProfile {
 }
 
 model GoogleReview {
-  id         Int      @id @default(autoincrement())
-  author     String   @db.VarChar(120)
-  rating     Int      @default(5)
-  text       String   @db.Text
-  reviewDate DateTime?
-  active     Boolean  @default(true)
-  sortOrder  Int      @default(0)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt @default(now())
+  id             Int      @id @default(autoincrement())
+  author         String   @db.VarChar(120)
+  rating         Int      @default(5)
+  text           String   @db.Text
+  reviewDate     DateTime?
+  active         Boolean  @default(true)
+  sortOrder      Int      @default(0)
+  source         String   @default("MANUAL") @db.VarChar(20)
+  googleReviewId String?  @unique @db.VarChar(255)
+  authorUri      String?  @db.Text
+  authorPhotoUrl String?  @db.Text
+  googleMapsUri  String?  @db.Text
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt @default(now())
 
   @@index([active, sortOrder])
+  @@index([source])
 }

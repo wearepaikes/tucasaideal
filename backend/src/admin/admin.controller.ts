@@ -6,13 +6,14 @@ import { AuthGateway } from '../auth/auth.gateway';
 import { AdminService } from './admin.service';
 import { BusinessProfileDto, CreateGoogleReviewDto, CreateProjectDto, CreateWorkDto, HouseCountProfileDto, ToggleActiveDto, UpdateLeadStatusDto, UpdateProjectDto, UpdateWorkDto } from './admin.dto';
 import { R2StorageService, type UploadedImage } from './r2-storage.service';
+import { GooglePlacesReviewsService } from '../reviews/google-places-reviews.service';
 
 type AdminRequest = Request & { user: { id: number; role: 'ADMIN' | 'DIRECTOR' } };
 
 @UseGuards(AuthGuard)
 @Controller('admin')
 export class AdminController {
-  constructor(private readonly admin: AdminService, private readonly gateway: AuthGateway, private readonly storage: R2StorageService) {}
+  constructor(private readonly admin: AdminService, private readonly gateway: AuthGateway, private readonly storage: R2StorageService, private readonly placesReviews: GooglePlacesReviewsService) {}
 
   private splitFiles(files: UploadedImage[]) { return { images: files.filter((file) => file.fieldname === 'images'), panoramas: files.filter((file) => file.fieldname === 'panoramas') }; }
 
@@ -23,6 +24,7 @@ export class AdminController {
   @Patch('business-profile') async updateBusinessProfile(@Body() dto: BusinessProfileDto) { const profile = await this.admin.updateBusinessProfile(dto); this.gateway.notifyBusinessProfile(profile); return profile; }
   @Patch('house-count-profile') async updateHouseCountProfile(@Body() dto: HouseCountProfileDto) { const profile = await this.admin.updateHouseCountProfile(dto); this.gateway.notifyBusinessProfile(profile); return profile; }
   @Get('reviews') googleReviews() { return this.admin.googleReviews(); }
+  @Post('reviews/sync') syncGoogleReviews() { return this.placesReviews.sync(true); }
   @Post('reviews') async createGoogleReview(@Body() dto: CreateGoogleReviewDto) { const review = await this.admin.createGoogleReview(dto); this.gateway.notifyReviewsChanged({ action: 'created', reviewId: review.id }); return review; }
   @Patch('reviews/:id/active') async toggleGoogleReview(@Param('id', ParseIntPipe) id: number, @Body() dto: ToggleActiveDto) { const review = await this.admin.toggleGoogleReview(id, dto.active); this.gateway.notifyReviewsChanged({ action: 'visibility', reviewId: id }); return review; }
   @Delete('reviews/:id') async deleteGoogleReview(@Param('id', ParseIntPipe) id: number) { await this.admin.deleteGoogleReview(id); this.gateway.notifyReviewsChanged({ action: 'deleted', reviewId: id }); return { deleted: true }; }
