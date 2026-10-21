@@ -164,6 +164,10 @@ model BusinessProfile {
   manualServiceYears Int?
   houseCountMode     String   @default("AUTOMATIC") @db.VarChar(20)
   manualHouseCount   Int?
+  googleRating       Float?
+  googleReviewCount  Int?
+  googleMapsUri      String?  @db.Text
+  googleReviewsSyncedAt DateTime?
   updatedAt          DateTime @updatedAt @default(now())
 }
 

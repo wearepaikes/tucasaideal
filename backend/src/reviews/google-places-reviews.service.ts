@@ -111,6 +111,11 @@ export class GooglePlacesReviewsService implements OnModuleInit, OnModuleDestroy
       const externalIds = reviews.map((review) => review.externalId);
       await this.prisma.$transaction(async (transaction) => {
         const db = transaction as any;
+        await db.businessProfile.upsert({
+          where: { id: 1 },
+          create: { id: 1, googleRating: place.rating ?? null, googleReviewCount: place.userRatingCount ?? null, googleMapsUri: place.googleMapsUri || null, googleReviewsSyncedAt: new Date() },
+          update: { googleRating: place.rating ?? null, googleReviewCount: place.userRatingCount ?? null, googleMapsUri: place.googleMapsUri || null, googleReviewsSyncedAt: new Date() },
+        });
         for (const review of reviews) {
           await db.googleReview.upsert({
             where: { googleReviewId: review.externalId },

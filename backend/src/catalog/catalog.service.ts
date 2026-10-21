@@ -12,7 +12,7 @@ export class CatalogService {
   async businessProfile() {
     const profile = await this.prisma.businessProfile.findUnique({ where: { id: 1 } });
     const publishedHouses = await this.prisma.work.count({ where: { active: true } });
-    if (!profile) return { years: 0, houseCount: publishedHouses };
+    if (!profile) return { years: 0, houseCount: publishedHouses, googleRating: null, googleReviewCount: 0, googleMapsUri: null };
     let years = profile.manualServiceYears ?? 0;
     if (profile.serviceYearsMode !== 'MANUAL' && profile.serviceStartDate) {
       const now = new Date();
@@ -20,6 +20,6 @@ export class CatalogService {
       const anniversary = new Date(now.getFullYear(), profile.serviceStartDate.getMonth(), profile.serviceStartDate.getDate());
       if (now < anniversary) years -= 1;
     }
-    return { years: Math.max(0, years), houseCount: profile.houseCountMode === 'MANUAL' ? profile.manualHouseCount ?? 0 : publishedHouses };
+    return { years: Math.max(0, years), houseCount: profile.houseCountMode === 'MANUAL' ? profile.manualHouseCount ?? 0 : publishedHouses, googleRating: profile.googleRating, googleReviewCount: profile.googleReviewCount ?? 0, googleMapsUri: profile.googleMapsUri };
   }
 }
