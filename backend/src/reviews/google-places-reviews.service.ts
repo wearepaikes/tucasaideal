@@ -76,7 +76,7 @@ export class GooglePlacesReviewsService implements OnModuleInit, OnModuleDestroy
     }
 
     try {
-      const response = await fetch(`https://places.googleapis.com/v1/places/${encodeURIComponent(placeId)}`, {
+      const response = await fetch(`https://places.googleapis.com/v1/places/${encodeURIComponent(placeId)}?languageCode=es`, {
         headers: {
           'X-Goog-Api-Key': apiKey,
           'X-Goog-FieldMask': 'displayName,rating,userRatingCount,googleMapsUri,reviews',
@@ -99,7 +99,7 @@ export class GooglePlacesReviewsService implements OnModuleInit, OnModuleDestroy
           externalId: review.name || `${review.authorAttribution?.displayName || 'Google'}:${review.publishTime || index}`,
           author: (review.authorAttribution?.displayName || 'Cliente de Google').slice(0, 120),
           rating,
-          text: (review.text?.text || review.originalText?.text || `Calificación de ${rating} estrellas en Google.`).trim(),
+          text: (review.originalText?.text || review.text?.text || `Calificación de ${rating} estrellas en Google.`).trim(),
           reviewDate: review.publishTime ? new Date(review.publishTime) : null,
           authorUri: review.authorAttribution?.uri || null,
           authorPhotoUrl: review.authorAttribution?.photoUri || null,
@@ -108,7 +108,6 @@ export class GooglePlacesReviewsService implements OnModuleInit, OnModuleDestroy
         };
       });
 
-      const externalIds = reviews.map((review) => review.externalId);
       await this.prisma.$transaction(async (transaction) => {
         const db = transaction as any;
         await db.businessProfile.upsert({
@@ -124,9 +123,6 @@ export class GooglePlacesReviewsService implements OnModuleInit, OnModuleDestroy
             update: reviewData,
           });
         }
-        await db.googleReview.deleteMany({
-          where: { source: 'GOOGLE', ...(externalIds.length ? { googleReviewId: { notIn: externalIds } } : {}) },
-        });
       });
 
       this.lastSyncAt = Date.now();
