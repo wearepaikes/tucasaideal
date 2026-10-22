@@ -117,10 +117,11 @@ export class GooglePlacesReviewsService implements OnModuleInit, OnModuleDestroy
           update: { googleRating: place.rating ?? null, googleReviewCount: place.userRatingCount ?? null, googleMapsUri: place.googleMapsUri || null, googleReviewsSyncedAt: new Date() },
         });
         for (const review of reviews) {
+          const { externalId, ...reviewData } = review;
           await db.googleReview.upsert({
-            where: { googleReviewId: review.externalId },
-            create: { ...review, googleReviewId: review.externalId, source: 'GOOGLE', active: true },
-            update: { author: review.author, rating: review.rating, text: review.text, reviewDate: review.reviewDate, authorUri: review.authorUri, authorPhotoUrl: review.authorPhotoUrl, googleMapsUri: review.googleMapsUri, sortOrder: review.sortOrder },
+            where: { googleReviewId: externalId },
+            create: { ...reviewData, googleReviewId: externalId, source: 'GOOGLE', active: true },
+            update: reviewData,
           });
         }
         await db.googleReview.deleteMany({
