@@ -135,7 +135,7 @@ export class AdminService {
   toggleWork(id: number, active: boolean) { return this.prisma.work.update({ where: { id }, data: { active } }); }
   replaceWorkPanoramas(id: number, panoramas: string[]) { return this.prisma.work.update({ where: { id }, data: { panoramas } }); }
 
-  googleReviews() { return (this.prisma as any).googleReview.findMany({ orderBy: [{ sortOrder: 'asc' }, { createdAt: 'desc' }] }); }
+  googleReviews() { return (this.prisma as any).googleReview.findMany({ orderBy: [{ reviewDate: 'desc' }, { createdAt: 'desc' }] }); }
   createGoogleReview(dto: CreateGoogleReviewDto) {
     return (this.prisma as any).googleReview.create({ data: { author: dto.author.trim(), rating: dto.rating, text: dto.text.trim(), reviewDate: dto.reviewDate ? new Date(`${dto.reviewDate}T00:00:00`) : null, active: dto.active ?? true } });
   }

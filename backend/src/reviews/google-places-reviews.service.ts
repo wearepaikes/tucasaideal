@@ -51,7 +51,7 @@ export class GooglePlacesReviewsService implements OnModuleInit, OnModuleDestroy
     await this.sync(false).catch(() => undefined);
     return (this.prisma as any).googleReview.findMany({
       where: { active: true },
-      orderBy: [{ sortOrder: 'asc' }, { createdAt: 'desc' }],
+      orderBy: [{ reviewDate: 'desc' }, { createdAt: 'desc' }],
     });
   }
 
