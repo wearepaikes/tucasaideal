@@ -117,13 +117,10 @@ export class GooglePlacesReviewsService implements OnModuleInit, OnModuleDestroy
         });
         for (const review of reviews) {
           const { externalId, ...reviewData } = review;
-          const existing = await db.googleReview.findUnique({ where: { googleReviewId: externalId }, select: { source: true } });
           await db.googleReview.upsert({
             where: { googleReviewId: externalId },
             create: { ...reviewData, googleReviewId: externalId, source: 'GOOGLE', active: true },
-            update: existing?.source === 'MANUAL'
-              ? { sortOrder: reviewData.sortOrder, authorUri: reviewData.authorUri, authorPhotoUrl: reviewData.authorPhotoUrl, googleMapsUri: reviewData.googleMapsUri }
-              : reviewData,
+            update: reviewData,
           });
         }
       });

@@ -4,7 +4,7 @@ import { AnyFilesInterceptor, FilesInterceptor } from '@nestjs/platform-express'
 import { AuthGuard } from '../auth/auth.guard';
 import { AuthGateway } from '../auth/auth.gateway';
 import { AdminService } from './admin.service';
-import { BusinessProfileDto, CreateGoogleReviewDto, CreateProjectDto, CreateWorkDto, HouseCountProfileDto, ToggleActiveDto, UpdateGoogleReviewDto, UpdateLeadStatusDto, UpdateProjectDto, UpdateWorkDto } from './admin.dto';
+import { BusinessProfileDto, CreateGoogleReviewDto, CreateProjectDto, CreateWorkDto, HouseCountProfileDto, ReplaceGoogleReviewDto, ToggleActiveDto, UpdateLeadStatusDto, UpdateProjectDto, UpdateWorkDto } from './admin.dto';
 import { R2StorageService, type UploadedImage } from './r2-storage.service';
 import { GooglePlacesReviewsService } from '../reviews/google-places-reviews.service';
 
@@ -26,7 +26,7 @@ export class AdminController {
   @Get('reviews') googleReviews() { return this.admin.googleReviews(); }
   @Post('reviews/sync') syncGoogleReviews() { return this.placesReviews.sync(true); }
   @Post('reviews') async createGoogleReview(@Body() dto: CreateGoogleReviewDto) { const review = await this.admin.createGoogleReview(dto); this.gateway.notifyReviewsChanged({ action: 'created', reviewId: review.id }); return review; }
-  @Patch('reviews/:id') async updateGoogleReview(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateGoogleReviewDto) { const review = await this.admin.updateGoogleReview(id, dto); this.gateway.notifyReviewsChanged({ action: 'updated', reviewId: id }); return review; }
+  @Patch('reviews/:id/replace') async replaceGoogleReview(@Param('id', ParseIntPipe) id: number, @Body() dto: ReplaceGoogleReviewDto) { const review = await this.admin.replaceGoogleReview(id, dto); this.gateway.notifyReviewsChanged({ action: 'replacement', reviewId: review.id }); return review; }
   @Patch('reviews/:id/active') async toggleGoogleReview(@Param('id', ParseIntPipe) id: number, @Body() dto: ToggleActiveDto) { const review = await this.admin.toggleGoogleReview(id, dto.active); this.gateway.notifyReviewsChanged({ action: 'visibility', reviewId: id }); return review; }
   @Delete('reviews/:id') async deleteGoogleReview(@Param('id', ParseIntPipe) id: number) { await this.admin.deleteGoogleReview(id); this.gateway.notifyReviewsChanged({ action: 'deleted', reviewId: id }); return { deleted: true }; }
   @Get('users') users() { return this.admin.users(); }

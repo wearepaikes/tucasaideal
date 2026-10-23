@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { BusinessProfileDto, CreateGoogleReviewDto, CreateProjectDto, CreateWorkDto, HouseCountProfileDto, UpdateGoogleReviewDto, UpdateWorkDto } from './admin.dto';
+import { BusinessProfileDto, CreateGoogleReviewDto, CreateProjectDto, CreateWorkDto, HouseCountProfileDto, ReplaceGoogleReviewDto, UpdateWorkDto } from './admin.dto';
 
 @Injectable()
 export class AdminService {
@@ -139,8 +139,21 @@ export class AdminService {
   createGoogleReview(dto: CreateGoogleReviewDto) {
     return (this.prisma as any).googleReview.create({ data: { author: dto.author.trim(), rating: dto.rating, text: dto.text.trim(), reviewDate: dto.reviewDate ? new Date(`${dto.reviewDate}T00:00:00`) : null, active: dto.active ?? true } });
   }
-  updateGoogleReview(id: number, dto: UpdateGoogleReviewDto) {
-    return (this.prisma as any).googleReview.update({ where: { id }, data: { author: dto.author.trim(), rating: dto.rating, text: dto.text.trim(), reviewDate: dto.reviewDate ? new Date(`${dto.reviewDate}T00:00:00`) : null, active: dto.active ?? true, source: 'MANUAL' } });
+  async replaceGoogleReview(id: number, dto: ReplaceGoogleReviewDto) {
+    if (id === dto.replacementId) throw new BadRequestException('Elegí una reseña diferente.');
+    return this.prisma.$transaction(async (transaction) => {
+      const db = transaction as any;
+      const [current, replacement] = await Promise.all([
+        db.googleReview.findUnique({ where: { id } }),
+        db.googleReview.findUnique({ where: { id: dto.replacementId } }),
+      ]);
+      if (!current || !replacement) throw new BadRequestException('La reseña seleccionada no existe.');
+      if (!current.active) throw new BadRequestException('Solo podés reemplazar una reseña visible.');
+      if (replacement.active) throw new BadRequestException('La reseña elegida ya se muestra en la web.');
+      if (replacement.source !== 'GOOGLE') throw new BadRequestException('Elegí una reseña importada desde Google.');
+      await db.googleReview.update({ where: { id }, data: { active: false, sortOrder: replacement.sortOrder } });
+      return db.googleReview.update({ where: { id: dto.replacementId }, data: { active: true, sortOrder: current.sortOrder } });
+    });
   }
   toggleGoogleReview(id: number, active: boolean) { return (this.prisma as any).googleReview.update({ where: { id }, data: { active } }); }
   deleteGoogleReview(id: number) { return (this.prisma as any).googleReview.delete({ where: { id } }); }

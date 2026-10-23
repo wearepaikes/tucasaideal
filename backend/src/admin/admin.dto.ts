@@ -55,4 +55,6 @@ export class CreateGoogleReviewDto {
   @IsOptional() @IsBoolean() active?: boolean;
 }
 
-export class UpdateGoogleReviewDto extends CreateGoogleReviewDto {}
+export class ReplaceGoogleReviewDto {
+  @Type(() => Number) @IsInt() @Min(1) replacementId!: number;
+}
