@@ -1,4 +1,4 @@
-import { BadGatewayException, ForbiddenException, HttpException, Injectable, Logger, OnModuleDestroy, OnModuleInit, ServiceUnavailableException } from '@nestjs/common';
+import { BadGatewayException, BadRequestException, ForbiddenException, HttpException, Injectable, Logger, OnModuleDestroy, OnModuleInit, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AuthGateway } from '../auth/auth.gateway';
 import { PrismaService } from '../prisma/prisma.service';
@@ -20,6 +20,17 @@ type GooglePlace = {
   googleMapsUri?: string;
   reviews?: GoogleReview[];
   error?: { message?: string };
+};
+
+type ReviewCandidate = {
+  externalId: string;
+  author: string;
+  rating: number;
+  text: string;
+  reviewDate: Date;
+  authorUri: string | null;
+  authorPhotoUrl: string | null;
+  googleMapsUri: string | null;
 };
 
 @Injectable()
@@ -52,6 +63,92 @@ export class GooglePlacesReviewsService implements OnModuleInit, OnModuleDestroy
     return (this.prisma as any).googleReview.findMany({
       where: { active: true },
       orderBy: [{ reviewDate: 'desc' }, { createdAt: 'desc' }],
+    });
+  }
+
+  async replaceWithFreshReview(currentId: number) {
+    const apiKey = this.config.get<string>('GOOGLE_PLACES_API_KEY')?.trim();
+    const placeId = this.config.get<string>('GOOGLE_PLACE_ID')?.trim();
+    if (!apiKey || !placeId) throw new ServiceUnavailableException('Faltan GOOGLE_PLACES_API_KEY o GOOGLE_PLACE_ID en Railway.');
+
+    const stored = await (this.prisma as any).googleReview.findMany({
+      select: { googleReviewId: true, author: true, text: true, reviewDate: true },
+    });
+    const knownIds = new Set(stored.map((review: any) => review.googleReviewId).filter(Boolean));
+    const knownTexts = new Set(stored.map((review: any) => String(review.text || '').trim().toLowerCase()).filter(Boolean));
+    const knownAuthorDates = new Set(stored.map((review: any) => `${String(review.author || '').trim().toLowerCase()}|${review.reviewDate ? new Date(review.reviewDate).toISOString().slice(0, 10) : ''}`));
+    const candidates: ReviewCandidate[] = [];
+
+    try {
+      const legacyUrl = new URL('https://maps.googleapis.com/maps/api/place/details/json');
+      legacyUrl.searchParams.set('place_id', placeId);
+      legacyUrl.searchParams.set('fields', 'name,url,reviews');
+      legacyUrl.searchParams.set('reviews_sort', 'newest');
+      legacyUrl.searchParams.set('language', 'es');
+      legacyUrl.searchParams.set('key', apiKey);
+      const response = await fetch(legacyUrl, { signal: AbortSignal.timeout(12000) });
+      const payload = await response.json() as any;
+      if (response.ok && payload.status === 'OK') {
+        for (const review of payload.result?.reviews || []) {
+          const reviewDate = new Date(Number(review.time) * 1000);
+          candidates.push({
+            externalId: `legacy:${review.author_url || review.author_name || 'google'}:${review.time}`,
+            author: (review.author_name || 'Cliente de Google').slice(0, 120),
+            rating: Math.max(1, Math.min(5, Math.round(review.rating || 5))),
+            text: String(review.text || '').trim(),
+            reviewDate,
+            authorUri: review.author_url || null,
+            authorPhotoUrl: review.profile_photo_url || null,
+            googleMapsUri: payload.result?.url || null,
+          });
+        }
+      }
+    } catch (error) {
+      this.logger.warn(`No se pudieron consultar las reseñas más recientes con Places Details: ${error instanceof Error ? error.message : error}`);
+    }
+
+    try {
+      const response = await fetch(`https://places.googleapis.com/v1/places/${encodeURIComponent(placeId)}?languageCode=es`, {
+        headers: { 'X-Goog-Api-Key': apiKey, 'X-Goog-FieldMask': 'googleMapsUri,reviews' },
+        signal: AbortSignal.timeout(12000),
+      });
+      const place = await response.json() as GooglePlace;
+      if (!response.ok) throw new Error(place.error?.message || `Google Places respondió ${response.status}.`);
+      for (const [index, review] of (place.reviews || []).entries()) {
+        const reviewDate = review.publishTime ? new Date(review.publishTime) : new Date(0);
+        candidates.push({
+          externalId: review.name || `${review.authorAttribution?.displayName || 'Google'}:${review.publishTime || index}`,
+          author: (review.authorAttribution?.displayName || 'Cliente de Google').slice(0, 120),
+          rating: Math.max(1, Math.min(5, Math.round(review.rating || 5))),
+          text: (review.originalText?.text || review.text?.text || '').trim(),
+          reviewDate,
+          authorUri: review.authorAttribution?.uri || null,
+          authorPhotoUrl: review.authorAttribution?.photoUri || null,
+          googleMapsUri: review.googleMapsUri || place.googleMapsUri || null,
+        });
+      }
+    } catch (error) {
+      if (!candidates.length) {
+        throw new BadGatewayException(error instanceof Error ? error.message : 'No fue posible consultar Google Places.');
+      }
+      this.logger.warn(`No se pudo completar la consulta adicional de Places API: ${error instanceof Error ? error.message : error}`);
+    }
+
+    const recentLimit = Date.now() - 3 * 365 * 24 * 60 * 60 * 1000;
+    const eligible = candidates
+      .filter((review) => review.rating >= 4 && review.text && review.reviewDate.valueOf() >= recentLimit)
+      .filter((review) => !knownIds.has(review.externalId) && !knownTexts.has(review.text.toLowerCase()) && !knownAuthorDates.has(`${review.author.trim().toLowerCase()}|${review.reviewDate.toISOString().slice(0, 10)}`))
+      .sort((a, b) => b.reviewDate.valueOf() - a.reviewDate.valueOf())
+      .slice(0, 3);
+    if (!eligible.length) throw new BadRequestException('Google no devolvió una reseña nueva, reciente y de 4 o 5 estrellas que todavía no esté cargada. Intentá nuevamente más adelante.');
+    const selected = eligible[Math.floor(Math.random() * eligible.length)];
+
+    return this.prisma.$transaction(async (transaction) => {
+      const db = transaction as any;
+      const current = await db.googleReview.findUnique({ where: { id: currentId } });
+      if (!current?.active) throw new BadRequestException('Solo podés reemplazar una reseña visible.');
+      await db.googleReview.update({ where: { id: currentId }, data: { active: false } });
+      return db.googleReview.create({ data: { author: selected.author, rating: selected.rating, text: selected.text, reviewDate: selected.reviewDate, active: true, sortOrder: current.sortOrder, source: 'GOOGLE', googleReviewId: selected.externalId, authorUri: selected.authorUri, authorPhotoUrl: selected.authorPhotoUrl, googleMapsUri: selected.googleMapsUri } });
     });
   }
 

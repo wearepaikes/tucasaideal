@@ -54,7 +54,3 @@ export class CreateGoogleReviewDto {
   @IsOptional() @IsDateString() reviewDate?: string;
   @IsOptional() @IsBoolean() active?: boolean;
 }
-
-export class ReplaceGoogleReviewDto {
-  @Type(() => Number) @IsInt() @Min(1) replacementId!: number;
-}
