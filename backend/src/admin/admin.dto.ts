@@ -54,3 +54,5 @@ export class CreateGoogleReviewDto {
   @IsOptional() @IsDateString() reviewDate?: string;
   @IsOptional() @IsBoolean() active?: boolean;
 }
+
+export class UpdateGoogleReviewDto extends CreateGoogleReviewDto {}

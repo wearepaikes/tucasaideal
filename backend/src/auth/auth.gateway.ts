@@ -68,7 +68,7 @@ export class AuthGateway implements OnGatewayConnection {
     this.server.emit('works:updated', change);
   }
 
-  notifyReviewsChanged(change: { action: 'created' | 'deleted' | 'visibility' | 'synced'; reviewId: number }) {
+  notifyReviewsChanged(change: { action: 'created' | 'updated' | 'deleted' | 'visibility' | 'synced'; reviewId: number }) {
     this.server.emit('reviews:updated', change);
   }
 

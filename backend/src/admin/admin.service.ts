@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { BusinessProfileDto, CreateGoogleReviewDto, CreateProjectDto, CreateWorkDto, HouseCountProfileDto, UpdateWorkDto } from './admin.dto';
+import { BusinessProfileDto, CreateGoogleReviewDto, CreateProjectDto, CreateWorkDto, HouseCountProfileDto, UpdateGoogleReviewDto, UpdateWorkDto } from './admin.dto';
 
 @Injectable()
 export class AdminService {
@@ -138,6 +138,9 @@ export class AdminService {
   googleReviews() { return (this.prisma as any).googleReview.findMany({ orderBy: [{ sortOrder: 'asc' }, { createdAt: 'desc' }] }); }
   createGoogleReview(dto: CreateGoogleReviewDto) {
     return (this.prisma as any).googleReview.create({ data: { author: dto.author.trim(), rating: dto.rating, text: dto.text.trim(), reviewDate: dto.reviewDate ? new Date(`${dto.reviewDate}T00:00:00`) : null, active: dto.active ?? true } });
+  }
+  updateGoogleReview(id: number, dto: UpdateGoogleReviewDto) {
+    return (this.prisma as any).googleReview.update({ where: { id }, data: { author: dto.author.trim(), rating: dto.rating, text: dto.text.trim(), reviewDate: dto.reviewDate ? new Date(`${dto.reviewDate}T00:00:00`) : null, active: dto.active ?? true, source: 'MANUAL' } });
   }
   toggleGoogleReview(id: number, active: boolean) { return (this.prisma as any).googleReview.update({ where: { id }, data: { active } }); }
   deleteGoogleReview(id: number) { return (this.prisma as any).googleReview.delete({ where: { id } }); }
