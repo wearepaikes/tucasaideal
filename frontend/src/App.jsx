@@ -9,28 +9,12 @@ import AdminAccess from './features/auth/AdminAccess.jsx';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 const PhoneInput = PhoneInputModule.default || PhoneInputModule;
 const WA_NUMBER = '59892501142';
-const GOOGLE_PROFILE_FALLBACK = 'https://www.google.com/maps/search/?api=1&query=Tu+Casa+Ideal+Parque+del+Plata+Uruguay';
 const wa = (text) => `https://wa.me/${WA_NUMBER}?text=${encodeURIComponent(text)}`;
 const publicAsset = (value, folder) => {
   if (!value) return '/admin-login.webp';
   if (/^(https?:)?\//.test(value)) return value;
   return `${folder}${value.replace(/\.(jpg|jpeg|png|webp)$/i, '')}.jpg`;
 };
-const normalizeText = (value = '') => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-const DEPARTMENT_PLACES = {
-  Canelones: ['el pinar', 'lagomar', 'las piedras', 'marindia', 'neptunia', 'pando', 'parque del plata', 'salinas', 'solymar', 'solimar', 'villa argentina'],
-  Maldonado: ['maldonado', 'piriapolis', 'sauce de portezuelo', 'solis de mataojo'],
-  Montevideo: ['montevideo', 'av. instrucciones'],
-  Rocha: ['rocha', 'la paloma', 'punta del diablo'],
-  'San José': ['ciudad del plata'],
-  'Treinta y Tres': ['treinta y tres'],
-};
-const getDepartment = (work) => {
-  if (work.department) return work.department;
-  const location = normalizeText(work.location);
-  return Object.entries(DEPARTMENT_PLACES).find(([, places]) => places.some((place) => location.includes(normalizeText(place))))?.[0] || 'Otros';
-};
-const getWorkPhotos = (work) => Array.isArray(work.photos) && work.photos.length ? work.photos : [work.photo].filter(Boolean);
 
 function CountUp({ value }) {
   const element = useRef(null);
@@ -78,10 +62,10 @@ function HouseFactIcon({ type }) {
 }
 
 const models = [
-  { size: '18', price: '7.500', image: '/modulo-18.jpg', description: 'Módulo monoambiente · también oficina, aula o local', video: 'Y54bsjJCyVU' },
-  { size: '30', price: '14.500', image: '/casa-30.jpg', description: '1 dormitorio · 1 baño', video: 'Z7onhKVl9sE', pdf: 'https://www.tucasaideal.com.uy/_files/ugd/0e7c27_e8aebf04e7f44bb892a88087b3bba63a.pdf' },
-  { size: '42', price: '20.500', image: '/casa-42.jpg', description: '2 dormitorios · 1 baño', video: 'x0n3MMZ64TY', pdf: 'https://www.tucasaideal.com.uy/_files/ugd/0e7c27_a595cf36d62c4fd1a2a7268dbe1a2ad1.pdf', featured: true },
-  { size: '52', price: '22.500', image: '/obras/52m2-rocha.jpg', description: '3 dormitorios · 1 baño', video: 'vRzicYFD6AA', pdf: 'https://www.tucasaideal.com.uy/_files/ugd/0e7c27_29d6f4d08af244cb83d54c9af87fd65e.pdf' },
+  { size: '18', image: '/modulo-18.jpg', description: 'Módulo monoambiente · también oficina, aula o local', video: 'Y54bsjJCyVU' },
+  { size: '30', image: '/casa-30.jpg', description: '1 dormitorio · 1 baño', video: 'Z7onhKVl9sE', pdf: 'https://www.tucasaideal.com.uy/_files/ugd/0e7c27_e8aebf04e7f44bb892a88087b3bba63a.pdf' },
+  { size: '42', image: '/casa-42.jpg', description: '2 dormitorios · 1 baño', video: 'x0n3MMZ64TY', pdf: 'https://www.tucasaideal.com.uy/_files/ugd/0e7c27_a595cf36d62c4fd1a2a7268dbe1a2ad1.pdf', featured: true },
+  { size: '52', image: '/casa-52.jpg', description: '[X] dormitorios · 1 baño', video: 'vRzicYFD6AA', pdf: 'https://www.tucasaideal.com.uy/_files/ugd/0e7c27_29d6f4d08af244cb83d54c9af87fd65e.pdf' },
 ];
 
 const tourVideos = { '18': 'Y54bsjJCyVU', '30': 'Z7onhKVl9sE', '42': 'x0n3MMZ64TY', '52': 'vRzicYFD6AA' };
@@ -156,43 +140,8 @@ function QuoteForm({ selectedModel, setSelectedModel }) {
   </form>;
 }
 
-function WorksSection({ works, onOpenGallery, onOpenVideo }) {
-  const [model, setModel] = useState('all');
-  const [place, setPlace] = useState('all');
-  const [page, setPage] = useState(1);
-  const perPage = 6;
-  const options = useMemo(() => ({
-    departments: [...new Set(works.map(getDepartment))].sort((a, b) => a.localeCompare(b, 'es')),
-    locations: [...new Set(works.map((item) => item.location).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es')),
-  }), [works]);
-  const filtered = useMemo(() => works.filter((item) => {
-    const [kind, ...parts] = place.split(':');
-    const value = parts.join(':');
-    return (model === 'all' || String(item.model) === model) && (place === 'all' || (kind === 'department' && getDepartment(item) === value) || (kind === 'location' && item.location === value));
-  }), [model, place, works]);
-  const pageCount = Math.max(1, Math.ceil(filtered.length / perPage));
-  const visible = filtered.slice((page - 1) * perPage, page * perPage);
-  useEffect(() => setPage(1), [model, place]);
-  useEffect(() => setPage((current) => Math.min(current, pageCount)), [pageCount]);
-  const changePage = (next) => { setPage(next); requestAnimationFrame(() => document.getElementById('obras')?.scrollIntoView({ behavior: 'smooth', block: 'start' })); };
-  return <section className="section section--sand works-experience" id="obras"><div className="wrap">
-    <header className="works-experience__head"><div><a className="works-video-channel" href="https://www.youtube.com/channel/UCGkd9MNX238Q8gKT4ESRuYQ" target="_blank" rel="noreferrer"><i>▶</i> Ver todos nuestros videos <b>↗</b></a><p className="eyebrow">Fotos y recorridos reales</p><h2>Nuestras casas</h2><p className="lead">Explorá todas las obras entregadas y filtrá por metraje, departamento o localidad.</p></div><div className="works-experience__seal"><strong>{works.length}</strong><span>casas<br/>publicadas</span></div></header>
-    <div className="works-filters"><div className="chips">{[['all','Todas'],['18','18 m²'],['30','30 m²'],['42','42 m²'],['52','52 m²']].map(([value,label]) => <button className={`chip ${model === value ? 'is-on' : ''}`} key={value} onClick={() => setModel(value)}>{label}</button>)}</div><label className="location-filter"><span>Departamento o localidad</span><select value={place} onChange={(event) => setPlace(event.target.value)}><option value="all">Todo Uruguay</option><optgroup label="Departamentos">{options.departments.map((value) => <option value={`department:${value}`} key={value}>{value}</option>)}</optgroup><optgroup label="Localidades">{options.locations.map((value) => <option value={`location:${value}`} key={value}>{value}</option>)}</optgroup></select></label></div>
-    <div className="works-results" aria-live="polite"><strong>{filtered.length}</strong> {filtered.length === 1 ? 'casa encontrada' : 'casas encontradas'}{(model !== 'all' || place !== 'all') && <button type="button" onClick={() => { setModel('all'); setPlace('all'); }}>Limpiar filtros</button>}</div>
-    <div className="ogrid">{!visible.length && <div className="ogrid__empty"><strong>No encontramos casas con esos filtros.</strong><span>Probá otra localidad o limpiá la búsqueda.</span></div>}{visible.map((work) => { const tourId = work.youtube || work.youtubeId || tourVideos[String(work.model)]; return <article className="obra" key={work.id || work.photo}><button className="obra__img" onClick={() => onOpenGallery(work)}><img src={publicAsset(work.photo, '/obras/thumb/')} alt={`Casa de ${work.model} m² en ${work.location}`} loading="lazy"/><span className="obra__photos">⌕ {getWorkPhotos(work).length > 1 ? `Ver ${getWorkPhotos(work).length} fotos` : 'Ver foto'}</span></button><div className="obra__body"><p className="eyebrow">Obra entregada</p><strong>{work.name || (String(work.model) === '18' ? 'Módulo 18 m²' : `${work.model} m²`)}</strong><span className="obra__location">{work.location}</span><div className="obra__facts" aria-label="Características de la casa"><span title="Metraje"><HouseFactIcon type="area"/><b>{work.area || work.model} m²</b></span>{work.bedrooms != null && <span title="Dormitorios"><HouseFactIcon type="bed"/><b>{work.bedrooms}</b></span>}{work.bathrooms != null && <span title="Baños"><HouseFactIcon type="bath"/><b>{work.bathrooms}</b></span>}</div>{tourId && <button className="obra__video" onClick={() => onOpenVideo({id:tourId,title:`Recorrido casa de ${work.model} m²`})}><i>▶</i><span><small>Video del modelo</small>Recorrer por dentro</span><b>↗</b></button>}</div></article>; })}</div>
-    {pageCount > 1 && <nav className="works-pagination" aria-label="Páginas de casas entregadas"><button type="button" disabled={page === 1} onClick={() => changePage(page - 1)} aria-label="Página anterior">←</button>{Array.from({ length: pageCount }, (_, index) => index + 1).map((value) => <button type="button" className={value === page ? 'is-current' : ''} aria-current={value === page ? 'page' : undefined} onClick={() => changePage(value)} key={value}>{value}</button>)}<button type="button" disabled={page === pageCount} onClick={() => changePage(page + 1)} aria-label="Página siguiente">→</button><span>Página {page} de {pageCount}</span></nav>}
-    <div className="works-experience__actions"><a href="#presupuesto" className="btn btn--accent">Quiero mi presupuesto</a></div>
-  </div></section>;
-}
-
-function GoogleReviewsSection({ reviews, profileUrl }) {
-  if (!reviews.length) return null;
-  return <section className="section google-reviews" id="resenas"><div className="wrap"><header className="google-reviews__head"><div><p className="eyebrow">Opiniones reales</p><h2>Lo que cuentan nuestros clientes</h2></div><a className="google-profile-link" href={profileUrl} target="_blank" rel="noreferrer"><i aria-hidden="true">G</i><span><small>Perfil oficial</small>Ver todas en Google</span><b>↗</b></a></header><div className="google-reviews__grid">{reviews.slice(0, 6).map((review) => <article className="google-review" key={review.id}><div className="google-review__stars" aria-label={`${review.rating} de 5 estrellas`}>{'★'.repeat(review.rating)}<span>{'★'.repeat(5-review.rating)}</span></div><p>“{review.text}”</p><footer>{review.authorPhotoUrl ? <img src={review.authorPhotoUrl} alt="" referrerPolicy="no-referrer"/> : <b>{review.author.slice(0,1).toUpperCase()}</b>}<div><strong>{review.author}</strong>{review.reviewDate && <time>{new Date(review.reviewDate).toLocaleDateString('es-UY', { month: 'long', year: 'numeric' })}</time>}</div><a href={review.googleMapsUri || profileUrl} target="_blank" rel="noreferrer" aria-label="Ver reseña en Google">G</a></footer></article>)}</div></div></section>;
-}
-
 export default function App() {
   const [filter, setFilter] = useState('all');
-  const [locationFilter, setLocationFilter] = useState('all');
   const [worksPage, setWorksPage] = useState(1);
   const [video, setVideo] = useState(null);
   const [gallery, setGallery] = useState(null);
@@ -203,8 +152,6 @@ export default function App() {
   const [worksPerPage, setWorksPerPage] = useState(() => window.matchMedia('(max-width: 719px)').matches ? 4 : 6);
   const [publicProjects, setPublicProjects] = useState(Object.values(fallbackProjects));
   const [publicWorks, setPublicWorks] = useState(fallbackWorks);
-  const [googleReviews, setGoogleReviews] = useState([]);
-  const [googleProfileUrl, setGoogleProfileUrl] = useState(GOOGLE_PROFILE_FALLBACK);
   const [serviceYears, setServiceYears] = useState(0);
   const [houseCount, setHouseCount] = useState(0);
   const accessToken = window.location.pathname.match(/^\/acceso\/([^/]+)$/)?.[1];
@@ -215,7 +162,7 @@ export default function App() {
   }, []);
   useEffect(() => {
     if (accessToken) return undefined;
-    const applyProfile = (profile) => { setServiceYears(Number(profile.years) || 0); setHouseCount(Number(profile.houseCount) || 0); setGoogleProfileUrl(profile.googleMapsUri || GOOGLE_PROFILE_FALLBACK); };
+    const applyProfile = (profile) => { setServiceYears(Number(profile.years) || 0); setHouseCount(Number(profile.houseCount) || 0); };
     const loadProjects = () => fetch(`${API_URL}/projects`, { cache: 'no-store' }).then((response) => {
       if (!response.ok) throw new Error('No se pudieron cargar los proyectos.');
       return response.json();
@@ -224,36 +171,23 @@ export default function App() {
       if (!response.ok) throw new Error('No se pudieron cargar las casas.');
       return response.json();
     }).then(setPublicWorks).catch(() => {});
-    const loadReviews = () => fetch(`${API_URL}/reviews`, { cache: 'no-store' }).then((response) => response.ok ? response.json() : []).then(setGoogleReviews).catch(() => {});
     const loadProfile = () => fetch(`${API_URL}/business-profile`, { cache: 'no-store' }).then((response) => {
       if (!response.ok) throw new Error('No se pudo cargar el perfil público.');
       return response.json();
     }).then(applyProfile).catch(() => {});
     loadProfile();
-    loadReviews();
     const socket = io(new URL(API_URL).origin, { transports: ['websocket', 'polling'], reconnection: true });
-    socket.on('connect', () => { loadProfile(); loadProjects(); loadWorks(); loadReviews(); });
+    socket.on('connect', () => { loadProfile(); loadProjects(); loadWorks(); });
     socket.on('business-profile:updated', applyProfile);
     socket.on('projects:updated', loadProjects);
     socket.on('works:updated', loadWorks);
-    socket.on('reviews:updated', loadReviews);
-    const refreshPublicData = () => { loadProfile(); loadProjects(); loadWorks(); loadReviews(); };
+    const refreshPublicData = () => { loadProfile(); loadProjects(); loadWorks(); };
     const refreshWhenVisible = () => { if (document.visibilityState === 'visible') refreshPublicData(); };
     window.addEventListener('focus', refreshPublicData);
     document.addEventListener('visibilitychange', refreshWhenVisible);
-    return () => { socket.off('business-profile:updated', applyProfile); socket.off('projects:updated', loadProjects); socket.off('works:updated', loadWorks); socket.off('reviews:updated', loadReviews); socket.disconnect(); window.removeEventListener('focus', refreshPublicData); document.removeEventListener('visibilitychange', refreshWhenVisible); };
+    return () => { socket.off('business-profile:updated', applyProfile); socket.off('projects:updated', loadProjects); socket.off('works:updated', loadWorks); socket.disconnect(); window.removeEventListener('focus', refreshPublicData); document.removeEventListener('visibilitychange', refreshWhenVisible); };
   }, [accessToken]);
-  const locationOptions = useMemo(() => ({
-    departments: [...new Set(publicWorks.map(getDepartment))].sort((a, b) => a.localeCompare(b, 'es')),
-    locations: [...new Set(publicWorks.map((item) => item.location).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es')),
-  }), [publicWorks]);
-  const filteredWorks = useMemo(() => publicWorks.filter((item) => {
-    const matchesModel = filter === 'all' || String(item.model) === filter;
-    const [kind, ...parts] = locationFilter.split(':');
-    const value = parts.join(':');
-    const matchesLocation = locationFilter === 'all' || (kind === 'department' && getDepartment(item) === value) || (kind === 'location' && item.location === value);
-    return matchesModel && matchesLocation;
-  }), [filter, locationFilter, publicWorks]);
+  const filteredWorks = useMemo(() => publicWorks.filter((item) => filter === 'all' || item.model === filter), [filter, publicWorks]);
   const worksPageCount = Math.max(1, Math.ceil(filteredWorks.length / worksPerPage));
   const visibleWorks = useMemo(() => filteredWorks.slice((worksPage - 1) * worksPerPage, worksPage * worksPerPage), [filteredWorks, worksPage, worksPerPage]);
   const filteredProjects = useMemo(() => {
@@ -271,7 +205,7 @@ export default function App() {
   }, []);
   useEffect(() => { setProjectPage(1); }, [projectQuery, projectsPerPage]);
   useEffect(() => { setProjectPage((page) => Math.min(page, projectPageCount)); }, [projectPageCount]);
-  useEffect(() => { setWorksPage(1); }, [filter, locationFilter, worksPerPage]);
+  useEffect(() => { setWorksPage(1); }, [filter, worksPerPage]);
   useEffect(() => { setWorksPage((page) => Math.min(page, worksPageCount)); }, [worksPageCount]);
   const goToProjectPage = (page) => {
     setProjectPage(page);
@@ -282,11 +216,6 @@ export default function App() {
     requestAnimationFrame(() => document.getElementById('obras')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
   };
   const openProject = (project) => setGallery({ name: project.name, items: (Array.isArray(project.photos) ? project.photos : []).map((photo, i) => ({ src: publicAsset(photo, '/proyectos/'), alt: `${project.name}, foto ${i + 1}` })) });
-  const openWorkGallery = (work) => setGallery({ name: work.name || `Casa de ${work.model} m² · ${work.location}`, items: getWorkPhotos(work).map((photo, index) => ({ src: publicAsset(photo, '/obras/'), alt: `Casa de ${work.model} m² en ${work.location}, foto ${index + 1}`, title: `${work.model} m² · ${work.location}` })) });
-  const openModelGallery = (model) => {
-    const items = publicWorks.filter((work) => String(work.model) === model.size).flatMap((work) => getWorkPhotos(work).map((photo, index) => ({ src: publicAsset(photo, '/obras/'), alt: `Casa de ${model.size} m² en ${work.location}, foto ${index + 1}`, title: `${model.size} m² · ${work.location}` })));
-    setGallery({ name: model.size === '18' ? 'Módulo 18 m²' : `Casa de ${model.size} m²`, items: items.length ? items : [{ src: model.image, alt: `Casa de ${model.size} m²` }] });
-  };
   const chooseModel = (model) => { setSelectedModel(model); document.getElementById('presupuesto')?.scrollIntoView({ behavior: 'smooth' }); };
   if (accessToken) return <AdminAccess accessToken={accessToken} apiUrl={API_URL} />;
   return <>
@@ -294,13 +223,12 @@ export default function App() {
     <main>
       <section className="hero"><img className="hero__img" src="/hero.jpg" alt="Casa prefabricada terminada de Tu Casa Ideal" /><div className="hero__shade"/><div className="wrap hero__in"><p className="eyebrow eyebrow--light">Casas prefabricadas en todo Uruguay</p><h1>Tu casa en <span className="nowrap">15 días</span></h1><p className="hero__price">Desde <strong>USD 14.500</strong></p><a href="#presupuesto" className="btn btn--accent btn--lg">Pedí tu presupuesto</a></div></section>
       <section className="trust"><div className="wrap trust__in"><div className="trust__item"><strong>+<CountUp value={serviceYears}/> años</strong><span>en el mercado</span></div><div className="trust__item"><strong>+<CountUp value={houseCount}/> casas</strong><span>entregadas en todo el país</span></div><a className="trust__item trust__item--link" href="#showroom" aria-label="Ver foto y datos del showroom"><strong>Showroom</strong><span>Ver oficina en Parque del Plata ↓</span></a></div></section>
-      <section className="section" id="modelos"><div className="wrap"><p className="eyebrow">Casas prefabricadas</p><h2>Elegí tu modelo</h2><p className="lead">Cuatro formas de empezar, pensadas para distintas necesidades y etapas.</p><div className="cards">{models.map((model) => <article className="card" key={model.size}>{model.featured && <span className="badge">Más elegida</span>}<img src={model.image} alt={`Casa de ${model.size} m²`} loading="lazy"/><div className="card__body"><h3>{model.size} m²</h3><p className="muted">{model.description}</p><p className="card__price"><span>Desde</span><strong>USD {model.price}</strong></p><div className="card__links"><button className="linkbtn linkbtn--photos" type="button" onClick={() => openModelGallery(model)}>Ver fotos reales</button>{model.pdf && <a href={model.pdf} target="_blank" rel="noreferrer">Informe técnico (PDF)</a>}<button className="linkbtn" onClick={() => setVideo({ id: model.video, title: `Casa de ${model.size} m²` })}>Ver video</button></div><div className="card__actions"><button className="btn btn--primary btn--block" onClick={() => chooseModel(model.size === '18' ? 'Módulo 18 m²' : `${model.size} m²`)}>Quiero esta</button><a className="btn btn--wa btn--block" href={wa(`Hola, vi la web y me interesa la casa de ${model.size} m²`)} target="_blank" rel="noreferrer" aria-label={`Cotizar casa de ${model.size} metros cuadrados por WhatsApp`}><WhatsAppIcon />Cotizar por WhatsApp</a></div></div></article>)}</div></div></section>
-      <section className="project-directory" id="proyectos"><div className="wrap"><header className="project-directory__head"><div><p className="eyebrow">Desarrollos a medida</p><h2>Todos nuestros proyectos</h2><p>Explorá cada desarrollo, conocé su estado y recorré todas sus imágenes.</p></div><label className="project-search"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m21 21-4.35-4.35m2.35-5.15a7.5 7.5 0 1 1-15 0 7.5 7.5 0 0 1 15 0Z"/></svg><span>Buscar proyecto</span><input type="search" value={projectQuery} onChange={(event) => setProjectQuery(event.target.value)} placeholder="Ej: Solymar, Gardens…"/></label></header><div className="project-directory__meta"><strong>{filteredProjects.length}</strong><span>{filteredProjects.length === 1 ? 'proyecto encontrado' : 'proyectos encontrados'}</span>{projectQuery && <button type="button" onClick={() => setProjectQuery('')}>Limpiar búsqueda</button>}</div>{filteredProjects.length ? <><div className="project-directory__grid">{visibleProjects.map((project, index) => <article className="directory-project" key={project.id || project.name}><button className="directory-project__image" onClick={() => openProject(project)}><img src={publicAsset(project.cover, '/proyectos/thumb/')} alt={project.name} loading="lazy"/><span>{String((projectPage - 1) * projectsPerPage + index + 1).padStart(2, '0')}</span><em>{Array.isArray(project.photos) ? project.photos.length : 0} fotos</em></button><div><p className="eyebrow">Proyecto residencial</p><h3>{project.name}</h3><span className={`tag ${project.status === 'En desarrollo' ? 'tag--new' : ''}${normalizeText(project.status).includes('ultimas unidades') ? ' tag--last' : ''}`}>{project.status}</span><button className="directory-project__open" onClick={() => openProject(project)}>Recorrer proyecto <b>↗</b></button></div></article>)}</div>{projectPageCount > 1 && <nav className="project-pagination" aria-label="Páginas de proyectos"><button type="button" disabled={projectPage === 1} onClick={() => goToProjectPage(projectPage - 1)} aria-label="Página anterior">←</button>{Array.from({ length: projectPageCount }, (_, index) => index + 1).map((page) => <button type="button" className={page === projectPage ? 'is-current' : ''} aria-current={page === projectPage ? 'page' : undefined} onClick={() => goToProjectPage(page)} key={page}>{page}</button>)}<button type="button" disabled={projectPage === projectPageCount} onClick={() => goToProjectPage(projectPage + 1)} aria-label="Página siguiente">→</button><span>Página {projectPage} de {projectPageCount}</span></nav>}</> : <div className="project-directory__empty"><span>⌕</span><h3>No encontramos ese proyecto</h3><p>Probá con otro nombre o limpiá la búsqueda.</p><button className="btn btn--outline" onClick={() => setProjectQuery('')}>Mostrar todos</button></div>}<div className="project-directory__cta"><div><p className="eyebrow">Una idea puede ser el próximo proyecto</p><h3>¿Tenés un desarrollo en mente?</h3><p>Diseñamos complejos de viviendas, oficinas, vestuarios, aulas y locales a medida.</p></div><button className="btn btn--accent" onClick={() => chooseModel('Proyecto a medida')}>Consultar proyecto</button></div></div></section>
+      <section className="section" id="modelos"><div className="wrap"><p className="eyebrow">Casas prefabricadas</p><h2>Elegí tu modelo</h2><p className="lead">Cuatro formas de empezar, pensadas para distintas necesidades y etapas.</p><div className="cards">{models.map((model) => <article className="card" key={model.size}>{model.featured && <span className="badge">Más elegida</span>}<img src={model.image} alt={`Casa de ${model.size} m²`} loading="lazy"/><div className="card__body"><h3>{model.size} m²</h3><p className="muted">{model.description}</p><p className="card__price">Kit desde <strong>USD [X]</strong></p><div className="card__links">{model.pdf && <a href={model.pdf} target="_blank" rel="noreferrer">Informe técnico (PDF)</a>}<button className="linkbtn" onClick={() => setVideo({ id: model.video, title: `Casa de ${model.size} m²` })}>Ver video</button></div><div className="card__actions"><button className="btn btn--primary btn--block" onClick={() => chooseModel(model.size === '18' ? 'Módulo 18 m²' : `${model.size} m²`)}>Quiero esta</button><a className="btn btn--wa btn--block" href={wa(`Hola, vi la web y me interesa la casa de ${model.size} m²`)} target="_blank" rel="noreferrer" aria-label={`Cotizar casa de ${model.size} metros cuadrados por WhatsApp`}><WhatsAppIcon />Cotizar por WhatsApp</a></div></div></article>)}</div></div></section>
+      <section className="project-directory" id="proyectos"><div className="wrap"><header className="project-directory__head"><div><p className="eyebrow">Desarrollos a medida</p><h2>Todos nuestros proyectos</h2><p>Explorá cada desarrollo, conocé su estado y recorré todas sus imágenes.</p></div><label className="project-search"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m21 21-4.35-4.35m2.35-5.15a7.5 7.5 0 1 1-15 0 7.5 7.5 0 0 1 15 0Z"/></svg><span>Buscar proyecto</span><input type="search" value={projectQuery} onChange={(event) => setProjectQuery(event.target.value)} placeholder="Ej: Solymar, Gardens…"/></label></header><div className="project-directory__meta"><strong>{filteredProjects.length}</strong><span>{filteredProjects.length === 1 ? 'proyecto encontrado' : 'proyectos encontrados'}</span>{projectQuery && <button type="button" onClick={() => setProjectQuery('')}>Limpiar búsqueda</button>}</div>{filteredProjects.length ? <><div className="project-directory__grid">{visibleProjects.map((project, index) => <article className="directory-project" key={project.id || project.name}><button className="directory-project__image" onClick={() => openProject(project)}><img src={publicAsset(project.cover, '/proyectos/thumb/')} alt={project.name} loading="lazy"/><span>{String((projectPage - 1) * projectsPerPage + index + 1).padStart(2, '0')}</span><em>{Array.isArray(project.photos) ? project.photos.length : 0} fotos</em></button><div><p className="eyebrow">Proyecto residencial</p><h3>{project.name}</h3><span className={`tag ${project.status === 'En desarrollo' ? 'tag--new' : ''}`}>{project.status}</span><button className="directory-project__open" onClick={() => openProject(project)}>Recorrer proyecto <b>↗</b></button></div></article>)}</div>{projectPageCount > 1 && <nav className="project-pagination" aria-label="Páginas de proyectos"><button type="button" disabled={projectPage === 1} onClick={() => goToProjectPage(projectPage - 1)} aria-label="Página anterior">←</button>{Array.from({ length: projectPageCount }, (_, index) => index + 1).map((page) => <button type="button" className={page === projectPage ? 'is-current' : ''} aria-current={page === projectPage ? 'page' : undefined} onClick={() => goToProjectPage(page)} key={page}>{page}</button>)}<button type="button" disabled={projectPage === projectPageCount} onClick={() => goToProjectPage(projectPage + 1)} aria-label="Página siguiente">→</button><span>Página {projectPage} de {projectPageCount}</span></nav>}</> : <div className="project-directory__empty"><span>⌕</span><h3>No encontramos ese proyecto</h3><p>Probá con otro nombre o limpiá la búsqueda.</p><button className="btn btn--outline" onClick={() => setProjectQuery('')}>Mostrar todos</button></div>}<div className="project-directory__cta"><div><p className="eyebrow">Una idea puede ser el próximo proyecto</p><h3>¿Tenés un desarrollo en mente?</h3><p>Diseñamos complejos de viviendas, oficinas, vestuarios, aulas y locales a medida.</p></div><button className="btn btn--accent" onClick={() => chooseModel('Proyecto a medida')}>Consultar proyecto</button></div></div></section>
       <section className="section section--ink" id="incluye"><div className="wrap split split--suma"><div><h2>¿Qué incluye el precio?</h2><p className="lead">El precio publicado es el de la casa. Para tenerla lista en tu terreno se suman tres cosas que dependen de dónde está y cómo es.</p></div><div className="suma is-on is-done">{[['Tu casa','Paneles, aberturas y terminaciones','desde USD 14.500'],['+ Platea','Base de hormigón','según tu terreno'],['+ Flete','Traslado hasta tu terreno','según la distancia'],['+ Armado','Casa armada en 15 días','a cotizar']].map((row) => <div className="suma__row" key={row[0]}><div><strong>{row[0]}</strong><span>{row[1]}</span></div><b>{row[2]}</b></div>)}<div className="suma__total"><strong>= Precio final</strong><b className="suma__num">A cotizar</b><a href="#presupuesto" className="btn btn--accent suma__btn">Solicitá tu presupuesto</a></div></div></div></section>
       <section className="section" id="como-funciona"><div className="wrap"><h2>Cómo funciona</h2><ol className="steps">{[['Consulta','Nos escribís o venís al showroom y vemos qué modelo te sirve.'],['Presupuesto','Te pasamos el precio total llave en mano para tu terreno.'],['Platea','Se hace la base de hormigón donde va la casa.'],['Casa armada','En 15 días tu casa queda armada.']].map(([title,text],i) => <li key={title}><span className="steps__n">{i+1}</span><h3>{title}</h3><p>{text}</p></li>)}</ol></div></section>
       <section className="section section--dark" id="armado"><div className="wrap split"><button className="video" onClick={() => setVideo({ id:'YbPuoSA85Uk', title:'Proceso de armado' })}><img src="https://i.ytimg.com/vi/YbPuoSA85Uk/hqdefault.jpg" alt=""/><span className="video__play">▶</span></button><div><h2>De la platea a la casa en 15 días</h2><p className="lead">Mirá cómo se arma una casa, de principio a fin.</p><button className="btn btn--ghost-light" onClick={() => setVideo({ id:'30jzt1VY73k', title:'Armado en detalle' })}>Ver armado en detalle</button></div></div></section>
-      <WorksSection works={publicWorks} onOpenGallery={openWorkGallery} onOpenVideo={setVideo}/>
-      <GoogleReviewsSection reviews={googleReviews} profileUrl={googleProfileUrl}/>
+      <section className="section section--sand works-experience" id="obras"><div className="wrap"><header className="works-experience__head"><div><a className="works-video-channel" href="https://www.youtube.com/channel/UCGkd9MNX238Q8gKT4ESRuYQ" target="_blank" rel="noreferrer"><i>▶</i> Ver todos nuestros videos <b>↗</b></a><p className="eyebrow">Fotos y recorridos reales</p><h2>Casas que podés ver por dentro</h2><p className="lead">Explorá obras entregadas en todo Uruguay y mirá el recorrido interior del modelo que más te guste.</p></div><div className="works-experience__seal"><strong>{publicWorks.length}</strong><span>casas<br/>publicadas</span></div></header><div className="chips">{[['all','Todas'],['18','18 m²'],['30','30 m²'],['42','42 m²'],['52','52 m²']].map(([value,label]) => <button className={`chip ${filter === value ? 'is-on' : ''}`} key={value} onClick={() => {setFilter(value);setWorksPage(1)}}>{label}</button>)}</div><div className="ogrid">{visibleWorks.map((work,i) => { const tourId = work.youtube || work.youtubeId || tourVideos[String(work.model)]; return <article className="obra" key={work.id || work.photo}><button className="obra__img" onClick={() => setGallery({name:'Casas entregadas',index:i,items:visibleWorks.map((item) => ({src:publicAsset(item.photo,'/obras/'),alt:`Casa de ${item.model} m² en ${item.location}`,title:`${item.model} m² · ${item.location}`}))})}><img src={publicAsset(work.photo,'/obras/thumb/')} alt={`Casa de ${work.model} m² en ${work.location}`} loading="lazy"/><span className="obra__photos">⌕ Ver fotos</span></button><div className="obra__body"><p className="eyebrow">Obra entregada</p><strong>{work.name || (work.model === '18' ? 'Módulo 18 m²' : `${work.model} m²`)}</strong><span className="obra__location">{work.location}</span><div className="obra__facts" aria-label="Características de la casa"><span title="Metraje"><HouseFactIcon type="area"/><b>{work.area || work.model} m²</b></span>{work.bedrooms != null && <span title="Dormitorios"><HouseFactIcon type="bed"/><b>{work.bedrooms}</b></span>}{work.bathrooms != null && <span title="Baños"><HouseFactIcon type="bath"/><b>{work.bathrooms}</b></span>}</div>{tourId && <button className="obra__video" onClick={() => setVideo({id:tourId,title:`Recorrido casa de ${work.model} m²`})}><i>▶</i><span><small>Video del modelo</small>Recorrer por dentro</span><b>↗</b></button>}</div></article>; })}</div>{worksPageCount > 1 && <nav className="works-pagination" aria-label="Páginas de casas entregadas"><button type="button" disabled={worksPage === 1} onClick={() => goToWorksPage(worksPage - 1)} aria-label="Página anterior">←</button>{Array.from({ length: worksPageCount }, (_, index) => index + 1).map((page) => <button type="button" className={page === worksPage ? 'is-current' : ''} aria-current={page === worksPage ? 'page' : undefined} onClick={() => goToWorksPage(page)} key={page}>{page}</button>)}<button type="button" disabled={worksPage === worksPageCount} onClick={() => goToWorksPage(worksPage + 1)} aria-label="Página siguiente">→</button><span>Página {worksPage} de {worksPageCount}</span></nav>}<div className="works-experience__actions"><a href="#presupuesto" className="btn btn--accent">Quiero mi presupuesto</a></div></div></section>
       <section className="section" id="faq"><div className="wrap wrap--narrow"><h2>Preguntas frecuentes</h2><div className="faq">{[['¿Necesito tener terreno?','Sí, la casa se arma sobre una platea en tu terreno. Si todavía lo estás buscando, escribinos igual y te orientamos.'],['¿Qué incluye el precio?','El kit incluye paneles, aberturas y terminaciones. Se suman la platea, el flete y el armado.'],['¿Qué permisos necesito para instalarla?','Depende de la intendencia de tu departamento. Te asesoramos al pedir el presupuesto.'],['¿Hay financiación?','Consultanos por las opciones de pago y financiación vigentes.'],['¿Llegan al interior del país?','Sí, entregamos en todo Uruguay. El flete se calcula según la distancia.'],['¿Qué pasa si mi terreno no es plano?','La platea se adapta al terreno. Lo evaluamos al armar el presupuesto.'],['¿Se puede ampliar después?','Consultanos para evaluar las posibilidades de ampliación del modelo elegido.']].map(([q,a]) => <details key={q}><summary>{q}</summary><p>{a}</p></details>)}</div></div></section>
       <section className="section section--ink" id="presupuesto"><div className="wrap split split--form"><div><h2>Recibí tu presupuesto llave en mano</h2><p className="lead">Cuatro preguntas rápidas y te escribimos por WhatsApp con el precio total para tu terreno.</p><div className="showroom" id="showroom"><img src="/showroom.jpg" alt="Showroom de Tu Casa Ideal"/><div className="showroom__body"><h3>Visitá el showroom</h3><p>Ruta Interbalnearia km 49, acera sur<br/>Parque del Plata, Canelones</p><p>Lunes a sábado<br/>8:30 a 12:00 y 14:00 a 18:00</p><p>Tel. <a href="tel:+59843752096">4375 2096</a> · <a href="tel:+59899669912">099 669 912</a></p><button className="showroom__video" type="button" onClick={() => setVideo({ id: 'Oo5ww9XAGlw', title: 'Tour por el showroom' })}><i>▶</i><span><small>Conocelo antes de venir</small>Ver video del showroom</span><b>↗</b></button><a className="btn btn--wa btn--block" href={wa('Hola! Quiero coordinar una visita al showroom de Parque del Plata.')} target="_blank" rel="noreferrer"><WhatsAppIcon />Coordiná tu visita</a></div><iframe className="map" title="Mapa del showroom" loading="lazy" src="https://www.google.com/maps?q=Tu+Casa+Ideal,+Ruta+Interbalnearia+km+49,+Parque+del+Plata,+Canelones,+Uruguay&output=embed"/></div></div><QuoteForm key={selectedModel} selectedModel={selectedModel} setSelectedModel={setSelectedModel}/></div></section>
     </main>
