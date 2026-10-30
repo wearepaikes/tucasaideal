@@ -22,6 +22,7 @@ export class CreateWorkDto {
   @Type(() => Number) @IsInt() @Min(0) @Max(30) bedrooms!: number;
   @Type(() => Number) @IsInt() @Min(0) @Max(30) bathrooms!: number;
   @IsString() @IsNotEmpty() @MaxLength(30) status!: string;
+  @IsString() @IsIn(['Artigas', 'Canelones', 'Cerro Largo', 'Colonia', 'Durazno', 'Flores', 'Florida', 'Lavalleja', 'Maldonado', 'Montevideo', 'Paysandú', 'Río Negro', 'Rivera', 'Rocha', 'Salto', 'San José', 'Soriano', 'Tacuarembó', 'Treinta y Tres']) department!: string;
   @IsString() @IsNotEmpty() @MaxLength(120) location!: string;
   @IsOptional() @IsString() @MaxLength(500) coverSelection?: string;
   @IsOptional() @IsString() @MaxLength(255) youtubeId?: string;

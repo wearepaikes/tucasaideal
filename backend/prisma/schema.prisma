@@ -51,6 +51,7 @@ model Work {
   bedrooms  Int?
   bathrooms Int?
   status    String   @default("ENTREGADA") @db.VarChar(30)
+  department String  @db.VarChar(60)
   location  String   @db.VarChar(120)
   photo     String   @db.VarChar(255)
   photos    Json
