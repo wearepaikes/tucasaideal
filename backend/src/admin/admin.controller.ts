@@ -4,7 +4,7 @@ import { AnyFilesInterceptor, FilesInterceptor } from '@nestjs/platform-express'
 import { AuthGuard } from '../auth/auth.guard';
 import { AuthGateway } from '../auth/auth.gateway';
 import { AdminService } from './admin.service';
-import { BusinessProfileDto, CreateGoogleReviewDto, CreateProjectDto, CreateWorkDto, HouseCountProfileDto, ToggleActiveDto, UpdateLeadStatusDto, UpdateProjectDto, UpdateWorkDto } from './admin.dto';
+import { BusinessProfileDto, CreateGoogleReviewDto, CreateProjectDto, CreateProjectStatusDto, CreateWorkDto, HouseCountProfileDto, ToggleActiveDto, UpdateLeadStatusDto, UpdateProjectDto, UpdateWorkDto } from './admin.dto';
 import { R2StorageService, type UploadedImage } from './r2-storage.service';
 import { GooglePlacesReviewsService } from '../reviews/google-places-reviews.service';
 
@@ -32,6 +32,8 @@ export class AdminController {
   @Get('users') users() { return this.admin.users(); }
   @Patch('users/:id/active') async toggleUser(@Param('id', ParseIntPipe) id: number, @Body() dto: ToggleActiveDto, @Req() request: AdminRequest) { const result = await this.admin.toggleUser(id, dto.active, request.user.id); if (result.active) this.gateway.notifyApproved(result.id); return result; }
   @Get('projects') projects() { return this.admin.projects(); }
+  @Get('project-statuses') projectStatuses() { return this.admin.projectStatuses(); }
+  @Post('project-statuses') createProjectStatus(@Body() dto: CreateProjectStatusDto) { return this.admin.createProjectStatus(dto); }
   private existingPhotos(value?: string) { try { const parsed = JSON.parse(value || '[]'); if (!Array.isArray(parsed) || !parsed.every((item) => typeof item === 'string')) throw new Error(); return parsed as string[]; } catch { throw new BadRequestException('La lista de imágenes existentes no es válida.'); } }
   private withSelectedCover(existing: string[], uploaded: string[], selection?: string) {
     const photos = [...existing, ...uploaded];

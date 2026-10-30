@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { BusinessProfileDto, CreateGoogleReviewDto, CreateProjectDto, CreateWorkDto, HouseCountProfileDto, UpdateWorkDto } from './admin.dto';
+import { BusinessProfileDto, CreateGoogleReviewDto, CreateProjectDto, CreateProjectStatusDto, CreateWorkDto, HouseCountProfileDto, UpdateWorkDto } from './admin.dto';
 
 @Injectable()
 export class AdminService {
@@ -110,14 +110,36 @@ export class AdminService {
   }
 
   projects() { return this.prisma.project.findMany({ orderBy: { createdAt: 'desc' } }); }
+  async projectStatuses() {
+    const [saved, projects] = await Promise.all([
+      this.prisma.projectStatus.findMany({ orderBy: { name: 'asc' } }),
+      this.prisma.project.findMany({ select: { status: true } }),
+    ]);
+    const known = new Map(saved.map((status) => [status.name.toLocaleLowerCase('es'), status]));
+    for (const project of projects) {
+      const name = project.status.trim();
+      if (name && !known.has(name.toLocaleLowerCase('es'))) known.set(name.toLocaleLowerCase('es'), { id: 0, name, createdAt: new Date(0) });
+    }
+    return [...known.values()].sort((a, b) => a.name.localeCompare(b.name, 'es'));
+  }
+  createProjectStatus(dto: CreateProjectStatusDto) {
+    const name = dto.name.trim().replace(/\s+/g, ' ');
+    if (!name) throw new BadRequestException('Escribí un nombre para el estado.');
+    return this.prisma.projectStatus.upsert({ where: { name }, create: { name }, update: {} });
+  }
+  private ensureProjectStatus(name: string) {
+    const clean = name.trim().replace(/\s+/g, ' ');
+    return this.prisma.projectStatus.upsert({ where: { name: clean }, create: { name: clean }, update: {} });
+  }
   async createProject(dto: CreateProjectDto, photos: string[], panoramas: string[] = []) {
     const base = dto.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'proyecto';
     let slug = base;
     let suffix = 1;
     while (await this.prisma.project.findUnique({ where: { slug } })) slug = `${base}-${++suffix}`;
-    return this.prisma.project.create({ data: { slug, name: dto.name, status: dto.status, cover: photos[0], photos, panoramas } });
+    await this.ensureProjectStatus(dto.status);
+    return this.prisma.project.create({ data: { slug, name: dto.name, status: dto.status.trim(), cover: photos[0], photos, panoramas } });
   }
-  async updateProject(id: number, dto: CreateProjectDto, photos: string[], panoramas: string[] = []) { return this.prisma.project.update({ where: { id }, data: { name: dto.name, status: dto.status, cover: photos[0], photos, panoramas } }); }
+  async updateProject(id: number, dto: CreateProjectDto, photos: string[], panoramas: string[] = []) { await this.ensureProjectStatus(dto.status); return this.prisma.project.update({ where: { id }, data: { name: dto.name, status: dto.status.trim(), cover: photos[0], photos, panoramas } }); }
   async deleteProject(id: number) { const project = await this.prisma.project.delete({ where: { id } }); return project; }
   toggleProject(id: number, active: boolean) { return this.prisma.project.update({ where: { id }, data: { active } }); }
   replaceProjectPanoramas(id: number, panoramas: string[]) { return this.prisma.project.update({ where: { id }, data: { panoramas } }); }

@@ -12,6 +12,10 @@ export class UpdateProjectDto extends CreateProjectDto {
   @IsOptional() @IsString() existingPanoramas?: string;
 }
 
+export class CreateProjectStatusDto {
+  @IsString() @IsNotEmpty() @MaxLength(60) name!: string;
+}
+
 export class CreateWorkDto {
   @IsString() @IsNotEmpty() @MaxLength(120) name!: string;
   @Type(() => Number) @IsInt() @IsIn([18, 30, 42, 52]) area!: number;
