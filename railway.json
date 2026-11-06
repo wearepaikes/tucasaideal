@@ -5,7 +5,7 @@
     "buildCommand": "npm run build -w backend"
   },
   "deploy": {
-    "preDeployCommand": "npm run prisma:deploy -w backend",
+    "preDeployCommand": "npm run prisma:deploy -w backend && npm run migrate:r2-images -w backend -- --houses-only",
     "startCommand": "node backend/dist/src/main.js",
     "healthcheckPath": "/api/health",
     "healthcheckTimeout": 120,
